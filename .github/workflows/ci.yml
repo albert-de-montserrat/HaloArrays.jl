@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Julia ${{ matrix.julia-version }} / Linux
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        julia-version: ['1.9', '1']
+    env:
+      JULIA_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      # The test driver launches up to eight ranks on a shared runner.
+      OMPI_MCA_rmaps_base_oversubscribe: '1'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: julia-actions/setup-julia@v3
+        with:
+          version: ${{ matrix.julia-version }}
+      - name: Resolve package dependencies
+        # Ignore the development manifest only in this disposable CI checkout.
+        # Run the CPU test driver directly; Pkg.test would install GPU extras.
+        run: >-
+          julia --project=. --startup-file=no -e
+          'using Pkg; rm("Manifest.toml"; force=true); Pkg.instantiate()'
+      - name: Run MPI and threaded tests
+        run: julia --project=. --startup-file=no test/runtests.jl
+      - name: Run documentation example
+        run: julia --project=. --startup-file=no examples/quickstart.jl
+      - name: Run hide-communication documentation example
+        run: julia --project=. --startup-file=no examples/hide_communication.jl
+      - name: Run diffusion3D documentation example
+        run: julia --project=. --startup-file=no examples/diffusion3D.jl
+
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install documentation dependencies
+        run: npm ci
+      - name: Build documentation and check links
+        run: npm run docs:build

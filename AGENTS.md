@@ -1,0 +1,66 @@
+# Working on HaloArrays.jl
+
+HaloArrays is a Julia package for explicit Cartesian MPI topologies and halo
+exchange in 2D and 3D. Read the relevant implementation and tests before editing.
+Treat the current source as authoritative; the workspace's `../REDESIGN_PLAN.md`
+provides design context, including features that may not yet exist.
+
+## Repository map
+
+- `src/topology.jl`: Cartesian communicators, ranks, coordinates, neighbors.
+- `src/grid.jl`: local sizes, coordinate metadata, and owned exchange cache.
+- `src/field.jl`: array wrappers and per-field halo widths.
+- `src/exchange_cache.jl`: reusable byte buffers, MPI requests, pending state.
+- `src/halo_exchange.jl`: packing, dimension ordering, blocking and split API.
+- `src/validation.jl`: shape and duplicate-array checks.
+- `src/gather.jl`: gathering arrays using MPI derived datatypes.
+- `src/backend.jl`: backend hooks; GPU extensions declared in `Project.toml`
+  are not implemented in the current empty `ext/` directory.
+- `test/`: standalone Julia tests and an MPI subprocess driver.
+- `docs/`: VitePress Markdown site; `examples/`: runnable Julia examples.
+
+## Implementation conventions
+
+- Preserve explicit `Topology` / `Grid` ownership. Do not introduce a global
+  current grid, shared communication cache, or runtime backend flags.
+- Halo widths belong to `Field`; `Grid.nlocal` includes halo cells.
+- Keep one unfinished exchange per grid. Complete earlier dimensions before
+  packing later ones so corner data propagates correctly.
+- Independent concurrent communication should use separate topologies, which
+  own separate communicators. Cache ownership alone does not isolate MPI tags.
+- Preserve tuple specialization and the thin keyword/vararg wrapper pattern in
+  exchange code. Measure allocations before simplifying these hot paths.
+- Packing threads are opt-in; keep MPI calls out of spawned packing tasks.
+- Match the existing four-space Julia style and mutating `!` naming. Update
+  docstrings and corresponding documentation when public behavior changes.
+- Do not describe planned GPU support or performance targets as verified features.
+- Preserve pre-existing staged and unstaged work. Do not stage or commit unless asked.
+
+## Validation
+
+Run commands from the repository root:
+
+```sh
+julia --project=. -e 'using Pkg; Pkg.instantiate()'
+julia --project=. --startup-file=no test/test_field.jl
+julia --project=. --startup-file=no test/runtests.jl
+```
+
+The driver launches MPI tests at 1, 2, 4, and 8 ranks, and threaded packing tests
+at 1 and 2 ranks with four Julia threads. Do not wrap the driver in `mpiexec`.
+Use focused tests while developing; run the MPI matrix for communication changes.
+Allocation changes need warmed-up allocation tests; threading changes need the
+threaded tests. Report skipped checks and environment limitations accurately.
+
+For documentation changes:
+
+```sh
+npm ci
+npm run docs:build
+```
+
+Keep internal links valid, public signatures consistent with source, and examples
+runnable from the package project. The quickstart page includes its code directly
+from `examples/quickstart.jl`. Commit the npm lockfile; never commit `node_modules`,
+VitePress cache, or generated site output. A docs-only edit does not require the
+full MPI matrix; execute new or changed Julia examples when possible.
