@@ -1,0 +1,125 @@
+# GPU (CUDA) benchmark worker for HaloArrays.jl's "hide communication"
+# pattern — a CUDA port of benchmarks/bench_haloarrays_hide.jl (itself a 3D
+# generalization of examples/hide_communication.jl's overlap-vs-blocking
+# concept to a 7-point-Laplacian diffusion step), instrumented for this
+# directory's metric set (see metrics_common.jl). Prints one CSV line on
+# rank 0, same schema as bench_haloarrays_diffusion3d.jl.
+#
+# T_eff: the compute kernel reads {A} and writes {Anew} => n_reads=1,
+# n_writes=1 (field B is exchanged only to match communication volume, per
+# the CPU worker's own comment — it's not part of the compute kernel, so
+# excluded here too).
+#
+# Unlike the CPU worker's plain nested for-loop (fine for a host Array, but
+# scalar-indexing a CuArray would either error or be catastrophically slow),
+# this needs a real `@cuda`-launched kernel — a standard 3D thread/block grid
+# with bounds checking, not exhaustively tuned but a reasonable default.
+import Pkg
+Pkg.activate(joinpath(@__DIR__); io=devnull)
+using CUDA
+import MPI
+using HaloArrays
+include(joinpath(@__DIR__, "metrics_common.jl"))
+
+function laplacian_kernel!(Anew, A, dt, N, kstart, kstop)
+    i = (blockIdx().x - 1) * blockDim().x + threadIdx().x + 1
+    j = (blockIdx().y - 1) * blockDim().y + threadIdx().y + 1
+    k = (blockIdx().z - 1) * blockDim().z + threadIdx().z + kstart - 1
+    if i <= N - 1 && j <= N - 1 && k <= kstop
+        @inbounds Anew[i, j, k] = A[i, j, k] + dt * (
+            A[i-1, j, k] + A[i+1, j, k] + A[i, j-1, k] + A[i, j+1, k] + A[i, j, k-1] + A[i, j, k+1] - 6 * A[i, j, k])
+    end
+    return nothing
+end
+
+function launch_stencil!(Anew, A, dt, N, kstart, kstop)
+    nk = kstop - kstart + 1
+    nk <= 0 && return nothing
+    threads = (8, 8, min(4, nk))
+    blocks = (cld(N - 2, threads[1]), cld(N - 2, threads[2]), cld(nk, threads[3]))
+    @cuda threads = threads blocks = blocks laplacian_kernel!(Anew, A, dt, N, kstart, kstop)
+    return nothing
+end
+
+# One overlapped diffusion step: safe k-planes launched while dimension 3's
+# exchange is outstanding, the two dimension-3-adjacent planes launched after
+# finish! — same split as bench_haloarrays_hide.jl (CPU) and
+# examples/hide_communication.jl.
+function step_overlapped!(g, fA, fB, Anew, A, dt, N)
+    handle = halo_exchange_start!(g, fA, fB; dims=(1, 2, 3))
+    launch_stencil!(Anew, A, dt, N, 3, N - 2)
+    halo_exchange_finish!(handle)
+    launch_stencil!(Anew, A, dt, N, 2, 2)
+    launch_stencil!(Anew, A, dt, N, N - 1, N - 1)
+    return nothing
+end
+
+# Reference: the straightforward blocking step — used once, before timing,
+# to prove the overlapped split above computes the same answer.
+function step_blocking!(g, fA, fB, Anew, A, dt, N)
+    update_halo!(g, fA, fB)
+    launch_stencil!(Anew, A, dt, N, 2, N - 1)
+    return nothing
+end
+
+function main()
+    N      = parse(Int, ARGS[1])
+    niter  = parse(Int, ARGS[2])
+    warmup = max(5, niter ÷ 10)
+    dt     = 0.1
+
+    MPI.Init()
+    comm   = MPI.COMM_WORLD
+    rank   = MPI.Comm_rank(comm)
+    nprocs = MPI.Comm_size(comm)
+
+    t  = topology((0, 0, 0); comm=comm, periods=(true, true, true))
+    g  = grid(t, (N, N, N))
+    A  = CUDA.fill(Float64(rank), N, N, N)
+    B  = CUDA.fill(Float64(rank) + 0.5, N, N, N)
+    fA = field(A; halowidths=(1, 1, 1))
+    fB = field(B; halowidths=(1, 1, 1))
+    Anew = similar(A)
+
+    # Correctness gate, once, before any timing: overlapped split must match
+    # the blocking reference exactly. Host-side comparison since a GPU field
+    # never leaves the device otherwise (mirrors HaloArrays.jl's own
+    # test/test_cuda.jl methodology).
+    Aref, Bref = copy(A), copy(B)
+    fAref = field(Aref; halowidths=(1, 1, 1))
+    fBref = field(Bref; halowidths=(1, 1, 1))
+    Anew_ref = similar(A)
+    step_blocking!(g, fAref, fBref, Anew_ref, Aref, dt, N)
+    step_overlapped!(g, fA, fB, Anew, A, dt, N)
+    CUDA.synchronize()
+    @assert Array(Anew)[2:end-1, 2:end-1, 2:end-1] == Array(Anew_ref)[2:end-1, 2:end-1, 2:end-1]
+
+    for _ in 1:warmup
+        step_overlapped!(g, fA, fB, Anew, A, dt, N)
+    end
+    MPI.Barrier(comm)
+    CUDA.synchronize()
+    GC.gc()
+
+    stats = @timed for _ in 1:niter
+        step_overlapped!(g, fA, fB, Anew, A, dt, N)
+    end
+    CUDA.synchronize()
+
+    gpu_bytes = CUDA.@allocated for _ in 1:niter
+        step_overlapped!(g, fA, fB, Anew, A, dt, N)
+    end
+    CUDA.synchronize()
+
+    numel = N * N * N
+    teff = t_eff_gbs(1, 1, numel, sizeof(Float64), stats.time / niter)
+    peakbw = rank == 0 ? measure_peak_bandwidth_gbs() : 0.0
+
+    if rank == 0
+        print_result("HaloArrays", nprocs, N, niter, stats, gpu_bytes, teff, peakbw)
+    end
+    MPI.Barrier(comm)
+    MPI.Finalize()
+end
+
+main()

@@ -31,6 +31,11 @@ provides design context, including features that may not yet exist.
   automatically; each file skips gracefully via `functional()` if no usable
   GPU is present.
 - `docs/`: VitePress Markdown site; `examples/`: runnable Julia examples.
+- `benchmarks/`: HaloArrays.jl vs ImplicitGlobalGrid.jl comparison harness —
+  `bench_haloarrays*.jl`/`bench_igg*.jl` + `run_comparison*.sh` (CPU,
+  workstation-scale) and `gpu/` (CUDA, cluster-scale via `slurm_*.sh`,
+  own `Project.toml` since both packages only weakdep CUDA). Not part of
+  `test/runtests.jl`; run manually, results are not correctness tests.
 
 ## Implementation conventions
 
