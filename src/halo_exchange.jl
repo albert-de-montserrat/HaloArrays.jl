@@ -1,4 +1,45 @@
-export halo_exchange_start!, halo_exchange_finish!, update_halo!, ExchangeHandle
+export halo_exchange_start!, halo_exchange_finish!, update_halo!, ExchangeHandle,
+    @hide_halo_communication
+
+"""
+    @hide_halo_communication grid fields... [boundary_width=widths] begin
+        @parallel ranges kernel!(...)
+        boundary_updates...
+    end
+
+ParallelStencil integration for overlapping a ranged computation with halo
+exchange. ParallelStencil must be loaded so that the optional extension is
+active.
+
+The first nonempty statement must be exactly one explicitly ranged
+`@parallel` call. The macro partitions `ranges` into disjoint outer slabs and
+an inner box, launches the kernel over every outer slab, executes the remaining
+statements as boundary updates, synchronizes ParallelStencil, starts halo
+exchange for `fields`, launches the same kernel over the inner box, and finally
+finishes the exchange. `halo_exchange_finish!` runs from a `finally` clause if
+the inner launch throws.
+
+By default the partition width is the componentwise maximum of the exchanged
+fields' halo widths. Override it with `boundary_width=(bx, by)` or
+`boundary_width=(bx, by, bz)`. A larger width moves more work before the
+exchange and leaves less work available for overlap; it is a performance-tuning
+parameter and does not change the numerical result. Every width must be
+positive, match the dimensionality of `ranges`, and be less than half the
+corresponding range length. ParallelStencil's automatic partitioner also
+requires every range to start at `1`.
+
+The boundary statements must update only data outside the inner box and must
+not depend on unfinished inner values. They run before packing and are useful
+for physical boundary conditions. Halo exchange then overwrites provisional
+boundary values on internal process interfaces. As with
+`halo_exchange_start!`, only the final Cartesian dimension remains pending and
+can overlap the inner launch; earlier dimensions finish synchronously.
+"""
+macro hide_halo_communication(args...)
+    ext = Base.get_extension(HaloArrays, :HaloArraysParallelStencilExt)
+    ext === nothing && error("@hide_halo_communication requires ParallelStencil")
+    return ext.hide_halo_communication_expr(args...)
+end
 
 """
     ExchangeHandle

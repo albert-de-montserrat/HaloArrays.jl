@@ -31,11 +31,56 @@ end
 # All exchanged halos can now be read.
 ```
 
-There is no macro for this the way some other packages provide one — it is a
-plain two-call API. `halo_exchange_start!` returns a handle; you do compute in
-between; `halo_exchange_finish!` completes the handle. `update_halo!` is just
-`start!` immediately followed by `finish!`, and is what you want unless you
-specifically intend to overlap something.
+The two-call API is backend-independent: `halo_exchange_start!` returns a
+handle; you do compute in between; `halo_exchange_finish!` completes the
+handle. `update_halo!` is just `start!` immediately followed by `finish!`, and
+is what you want unless you specifically intend to overlap something. A
+ParallelStencil convenience macro for the common outer/inner stencil split is
+documented below.
+
+### ParallelStencil convenience macro
+
+Loading ParallelStencil activates the optional `@hide_halo_communication`
+extension:
+
+```julia
+@hide_halo_communication g Tf boundary_width=(16, 2, 2) begin
+    @parallel (1:nx-2, 1:ny-2, 1:nz-2) update_temperature!(
+        T, Cp, qx, qy, qz, dt, dx, dy, dz)
+    @parallel (1:1, 1:ny, 1:nz) noflux_xlo!(T)
+    @parallel (nx:nx, 1:ny, 1:nz) noflux_xhi!(T)
+    @parallel (1:nx, 1:1, 1:nz) noflux_ylo!(T)
+    @parallel (1:nx, ny:ny, 1:nz) noflux_yhi!(T)
+end
+```
+
+The macro expands this into the following schedule:
+
+1. Partition the first launch's range into nonoverlapping outer slabs and one
+   inner box.
+2. Launch `update_temperature!` once for every outer slab.
+3. Execute the remaining boundary-condition launches.
+4. Synchronize ParallelStencil so halo packing sees completed outer values.
+5. Start the HaloArrays exchange for `Tf`.
+6. Launch `update_temperature!` over the inner box.
+7. Finish the exchange in a `finally` clause.
+
+Without `boundary_width=...`, the macro uses the componentwise maximum halo
+width of its fields. This is the smallest naturally inferred safe width. An
+explicit larger value is a tuning parameter: it increases the work completed
+before communication and reduces the inner work available for overlap. It
+does not alter `Field.halowidths`, MPI message sizes, or the computed result.
+For `(16, 2, 2)`, the x range must contain at least 33 points and the y/z
+ranges at least 5; generally every range length must exceed twice its width.
+Ranges must start at `1`, matching ParallelStencil's partitioning contract.
+
+The first block statement must be the explicitly ranged computation to split.
+All later statements execute only once, before communication, and should be
+restricted to boundary data. They must not read values that are produced only
+by the still-unlaunched inner kernel. Applying physical boundary kernels on
+every rank is valid when halo exchange follows: received neighbor data
+overwrites provisional values at internal interfaces, while nonperiodic domain
+walls retain the imposed values.
 
 ### Why only the last dimension overlaps
 

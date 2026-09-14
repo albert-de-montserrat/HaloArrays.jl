@@ -88,6 +88,47 @@ all already `Field`s resolves to the first form (it is the more specific
 signature) — the one measured allocation-free on the exchange hot path — so
 this convenience costs nothing extra as long as you don't use it.
 
+## `@hide_halo_communication`
+
+```julia
+# Width inferred from the fields' halo widths.
+@hide_halo_communication g temperature begin
+    @parallel ranges update_temperature!(T, args...)
+    update_boundary_values!()
+end
+
+# Explicit performance-tuning override.
+@hide_halo_communication g temperature boundary_width=(16, 2, 2) begin
+    @parallel ranges update_temperature!(T, args...)
+    update_boundary_values!()
+end
+```
+
+Loading ParallelStencil activates this optional extension. The first nonempty
+statement must have the form `@parallel ranges kernel!(...)`, with explicit 2D
+or 3D ranges starting at `1`. The macro invokes that kernel multiple times:
+first over disjoint outer slabs, then once over the remaining inner box while
+halo communication is pending. Statements after the first launch impose
+boundary values after the outer computation and before halo packing.
+
+By default, the split width is the componentwise maximum halo width among all
+exchanged fields. For example, fields with widths `(1, 2, 1)` and `(2, 1, 1)`
+produce `(2, 2, 1)`. The optional `boundary_width` overrides this default. It
+must contain one positive integer per computation dimension, and each range
+length must be greater than twice its width. Increasing it computes thicker
+outer slabs before communication, leaving a smaller inner box to overlap MPI;
+it is a performance-tuning control, not an additional halo width and not a
+change to the fields' communication volume.
+
+After the outer kernels and boundary statements, the macro synchronizes the
+ParallelStencil backend before starting halo exchange. It then launches the
+inner kernel between `halo_exchange_start!` and `halo_exchange_finish!`.
+HaloArrays completes all exchange dimensions except the last inside the start
+call, so only the last dimension overlaps the inner computation. The finish
+call is protected by `finally` and therefore runs if the inner launch throws.
+See [hiding communication](./guide/halo-exchange#parallelstencil-convenience-macro)
+for the full schedule and safety rules.
+
 ## `halo_exchange_start!`
 
 ```julia
