@@ -30,19 +30,17 @@ NTASKS_MATRIX=(1 2 4)
 N=128
 NITER=150
 
-OUT=results_hide_gpu.csv
-echo "pkg,nprocs,N,niter,time_s,bytes,gctime_s,pauses,full_sweep,gpu_bytes,t_eff_gbs,peak_bw_gbs,pct_of_peak" > "$OUT"
+OUT=results_hide_gpu.jld2
+rm -f "$OUT"
 
 for n in "${NTASKS_MATRIX[@]}"; do
   for script in bench_haloarrays_hide.jl bench_igg_hide.jl; do
     echo "-- $script  gpus=$n  local_N=${N}^3 --" >&2
-    line=$(srun -n "$n" --uenv "$UENV" --view=juliaup julia --project=. --startup-file=no "$script" "$N" "$NITER" 2>err.log | grep '^RESULT' || true)
-    if [[ -z "$line" ]]; then
+    if ! srun -n "$n" --uenv "$UENV" --view=juliaup julia --project=. --startup-file=no "$script" "$N" "$NITER" "$OUT" 2>err.log; then
       echo "   FAILED (see err.log):" >&2
       tail -40 err.log >&2
       continue
     fi
-    echo "${line#RESULT,}" >> "$OUT"
   done
 done
 

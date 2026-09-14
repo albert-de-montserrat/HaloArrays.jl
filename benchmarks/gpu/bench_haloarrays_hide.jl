@@ -2,8 +2,8 @@
 # pattern — a CUDA port of benchmarks/bench_haloarrays_hide.jl (itself a 3D
 # generalization of examples/hide_communication.jl's overlap-vs-blocking
 # concept to a 7-point-Laplacian diffusion step), instrumented for this
-# directory's metric set (see metrics_common.jl). Prints one CSV line on
-# rank 0, same schema as bench_haloarrays_diffusion3d.jl.
+# directory's metric set (see metrics_common.jl). Rank 0 saves one result
+# record to the JLD2 path in `ARGS[3]`.
 #
 # T_eff: the compute kernel reads {A} and writes {Anew} => n_reads=1,
 # n_writes=1 (field B is exchanged only to match communication volume, per
@@ -60,6 +60,7 @@ end
 function main()
     N      = parse(Int, ARGS[1])
     niter  = parse(Int, ARGS[2])
+    output = ARGS[3]
     warmup = max(5, niter ÷ 10)
     dt     = 0.1
 
@@ -111,7 +112,7 @@ function main()
     peakbw = rank == 0 ? measure_peak_bandwidth_gbs() : 0.0
 
     if rank == 0
-        print_result("HaloArrays", nprocs, N, niter, stats, gpu_bytes, teff, peakbw)
+        save_result(output, "HaloArrays", nprocs, N, niter, stats, gpu_bytes, teff, peakbw)
     end
     MPI.Barrier(comm)
     MPI.Finalize()

@@ -1,17 +1,18 @@
-# Reads the GPU comparison result CSVs (produced by slurm_diffusion3d.sh /
+# Reads the GPU comparison JLD2 files (produced by slurm_diffusion3d.sh /
 # slurm_hide.sh on the cluster, copied back locally) and renders grouped-bar
 # PNGs (blocking and communication-hiding variants, grouped by problem size
 # N, one chart per metric per rank count) plus a markdown summary table. Needs no
-# GPU itself — run this after copying results_*_gpu.csv back from the
+# GPU itself — run this after copying results_*_gpu.jld2 back from the
 # cluster, e.g.:
 #   julia --project=benchmarks/gpu benchmarks/gpu/visualize.jl
 #
-# ARGS: zero or more CSV paths; defaults to
-# results_diffusion3d_gpu.csv and results_hide_gpu.csv in this directory
+# ARGS: zero or more JLD2 paths; defaults to
+# results_diffusion3d_gpu.jld2 and results_hide_gpu.jld2 in this directory
 # (whichever exist).
 import Pkg
 Pkg.activate(joinpath(@__DIR__); io=devnull)
 using CairoMakie
+using JLD2
 using Printf
 
 const METRICS = [
@@ -24,20 +25,8 @@ const METRICS = [
     ("pct_of_peak","effective throughput (% of measured peak BW)", row -> row.pct_of_peak),
 ]
 
-function read_results(path::AbstractString)
-    lines = readlines(path)
-    header = Symbol.(split(lines[1], ","))
-    rows = NamedTuple[]
-    for line in lines[2:end]
-        isempty(strip(line)) && continue
-        fields = split(line, ",")
-        vals = map(zip(header, fields)) do (h, f)
-            h === :pkg ? String(f) : parse(Float64, f)
-        end
-        push!(rows, NamedTuple{Tuple(header)}(vals))
-    end
-    return rows
-end
+read_results(path::AbstractString) = NamedTuple[
+    value for (key, value) in JLD2.load(path) if startswith(key, "result__")]
 
 function grouped_bar(rows, metricfn, ylabel, title, outfile)
     Ns = sort(unique(Int.(r.N for r in rows)))
@@ -67,11 +56,11 @@ function grouped_bar(rows, metricfn, ylabel, title, outfile)
     return outfile
 end
 
-function visualize_csv(path::AbstractString, plotdir::AbstractString)
+function visualize_results(path::AbstractString, plotdir::AbstractString)
     isfile(path) || return NamedTuple[]
     rows = read_results(path)
     isempty(rows) && return rows
-    tag = replace(basename(path), ".csv" => "")
+    tag = replace(basename(path), ".jld2" => "")
     for nprocs in sort(unique(Int.(r.nprocs for r in rows)))
         subset = filter(r -> Int(r.nprocs) == nprocs, rows)
         for (col, label, fn) in METRICS
@@ -108,7 +97,7 @@ end
 
 function main()
     paths = isempty(ARGS) ?
-        [joinpath(@__DIR__, "results_diffusion3d_gpu.csv"), joinpath(@__DIR__, "results_hide_gpu.csv")] :
+        [joinpath(@__DIR__, "results_diffusion3d_gpu.jld2"), joinpath(@__DIR__, "results_hide_gpu.jld2")] :
         collect(ARGS)
     plotdir = joinpath(@__DIR__, "plots")
     mkpath(plotdir)
@@ -119,14 +108,14 @@ function main()
             println("skip (not found): $path")
             continue
         end
-        tag = replace(basename(path), ".csv" => "")
-        rows = visualize_csv(path, plotdir)
+        tag = replace(basename(path), ".jld2" => "")
+        rows = visualize_results(path, plotdir)
         all_results[tag] = rows
         println("$(length(rows)) rows -> plots written under $plotdir/ (prefix \"$tag\")")
     end
 
     if isempty(all_results) || all(isempty, values(all_results))
-        println("No result CSVs found/non-empty; nothing to summarize. Run slurm_diffusion3d.sh / slurm_hide.sh first.")
+        println("No result JLD2 files found/non-empty; nothing to summarize. Run slurm_diffusion3d.sh / slurm_hide.sh first.")
         return
     end
 

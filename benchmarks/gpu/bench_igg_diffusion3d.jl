@@ -3,8 +3,8 @@
 # its header comment for the full rationale and T_eff read/write count),
 # using the same ParallelStencil CUDA kernels as the HaloArrays worker. This
 # is the blocking baseline: the full temperature update and wall kernels
-# complete before `update_halo!`. Prints one CSV line on rank 0, with the same
-# schema as the HaloArrays worker.
+# complete before `update_halo!`. Rank 0 saves one result record to the JLD2
+# path in `ARGS[3]`.
 import Pkg
 Pkg.activate(joinpath(@__DIR__); io=devnull)
 using CUDA                # before ImplicitGlobalGrid, to activate its CUDA support (its own convention)
@@ -68,6 +68,7 @@ end
 @views function main()
     N      = parse(Int, ARGS[1])
     niter  = parse(Int, ARGS[2])
+    output = ARGS[3]
     warmup = max(5, niter ÷ 10)
 
     lam, cp_min = 1.0, 1.0
@@ -142,7 +143,7 @@ end
     peakbw = me == 0 ? measure_peak_bandwidth_gbs() : 0.0
 
     if me == 0
-        print_result("ImplicitGlobalGrid", nprocs, N, niter, stats, gpu_bytes, teff, peakbw)
+        save_result(output, "ImplicitGlobalGrid", nprocs, N, niter, stats, gpu_bytes, teff, peakbw)
     end
     MPI.Barrier(MPI.COMM_WORLD)
     finalize_global_grid()

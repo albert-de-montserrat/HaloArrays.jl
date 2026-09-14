@@ -5,9 +5,8 @@
 # cheap relative to a large `niter`), instrumented for this directory's
 # metric set (walltime, GC pressure, device memory footprint, effective
 # throughput — see metrics_common.jl). Run under `mpiexec`/`srun` by
-# slurm_diffusion3d.sh. Prints exactly one CSV line on rank 0:
-#   RESULT,HaloArrays,<nprocs>,<N>,<niter>,<time_s>,<bytes>,<gctime_s>,
-#   <pauses>,<full_sweep>,<gpu_bytes>,<t_eff_gbs>,<peak_bw_gbs>,<pct_of_peak>
+# slurm_diffusion3d.sh. Rank 0 saves one result record to the JLD2 path in
+# `ARGS[3]`.
 #
 # T_eff: this kernel's ideal minimal fused version reads {T, Cp} and writes
 # {T} => n_reads=2, n_writes=1 (see metrics_common.jl for the formula).
@@ -79,6 +78,7 @@ end
 @views function main()
     N      = parse(Int, ARGS[1])
     niter  = parse(Int, ARGS[2])
+    output = ARGS[3]
     warmup = max(5, niter ÷ 10)
 
     MPI.Init()
@@ -157,7 +157,7 @@ end
     peakbw = rank == 0 ? measure_peak_bandwidth_gbs() : 0.0
 
     if rank == 0
-        print_result("HaloArrays", nprocs, N, niter, stats, gpu_bytes, teff, peakbw)
+        save_result(output, "HaloArrays", nprocs, N, niter, stats, gpu_bytes, teff, peakbw)
     end
     MPI.Barrier(comm)
     MPI.Finalize()

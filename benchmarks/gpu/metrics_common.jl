@@ -41,11 +41,19 @@ function measure_peak_bandwidth_gbs(; nrep::Integer=20)
     return bytes_moved / 1e9 / elapsed
 end
 
-# Single CSV RESULT line, extending the CPU-harness schema
-# (pkg,nprocs,N,niter,time_s,bytes,gctime_s,pauses,full_sweep, from
-# benchmarks/bench_*.jl) with gpu_bytes,t_eff_gbs,peak_bw_gbs,pct_of_peak.
-function print_result(pkg, nprocs, N, niter, stats, gpu_bytes, teff, peakbw)
+using JLD2
+
+function save_result(path, pkg, nprocs, N, niter, stats, gpu_bytes, teff, peakbw)
     gs = stats.gcstats
     pct = peakbw > 0 ? 100 * teff / peakbw : NaN
-    println("RESULT,$pkg,$nprocs,$N,$niter,$(stats.time),$(stats.bytes),$(stats.gctime),$(gs.pause),$(gs.full_sweep),$gpu_bytes,$teff,$peakbw,$pct")
+    result = (; pkg=String(pkg), nprocs, N, niter, time_s=stats.time,
+        bytes=stats.bytes, gctime_s=stats.gctime, pauses=gs.pause,
+        full_sweep=gs.full_sweep, gpu_bytes, t_eff_gbs=teff,
+        peak_bw_gbs=peakbw, pct_of_peak=pct)
+    key = "result__$(pkg)__n$(nprocs)__N$(N)"
+    jldopen(path, "a+") do file
+        file[key] = result
+    end
+    println("Saved $key to $path")
+    return result
 end

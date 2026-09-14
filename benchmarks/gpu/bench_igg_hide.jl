@@ -42,6 +42,7 @@ end
 function main()
     N      = parse(Int, ARGS[1])
     niter  = parse(Int, ARGS[2])
+    output = ARGS[3]
     warmup = max(5, niter ÷ 10)
     dt     = 0.1
 
@@ -73,7 +74,7 @@ function main()
     peakbw = me == 0 ? measure_peak_bandwidth_gbs() : 0.0
 
     if me == 0
-        print_result("ImplicitGlobalGrid", nprocs, N, niter, stats, gpu_bytes, teff, peakbw)
+        save_result(output, "ImplicitGlobalGrid", nprocs, N, niter, stats, gpu_bytes, teff, peakbw)
     end
     MPI.Barrier(MPI.COMM_WORLD)
     finalize_global_grid()
