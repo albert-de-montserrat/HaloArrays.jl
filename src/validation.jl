@@ -5,9 +5,21 @@ Validate a batch of fields against the `Grid` they are about to be exchanged
 on. Raises a plain `error(...)` (no custom exception hierarchy, matching the
 old package's actual hot-path convention) describing the first problem found:
 
-- a field's dimensionality doesn't match the grid's,
-- a field's local array size doesn't match `grid.nlocal`,
+- a field's dimensionality is smaller than the grid's, or its size disagrees
+  with `grid.nlocal` in the grid's own leading dimensions,
 - two fields in the same call alias the same underlying array.
+
+A field may have *more* dimensions than the grid (e.g. the CellArrays
+extension's batched `B=0` path, `src/CellArraysExt/halo_exchange.jl`, wraps a
+CellArray's cell-component axis as one extra trailing field dimension): any
+dimension beyond the grid's own `N` is never checked against `grid.nlocal`
+and is only ever touched by the exchange machinery
+(`sendrange`/`recvrange`/`halo_length` in halo_exchange.jl, which already
+loop over a field's *own* `ndims`, not the grid's) if it is explicitly named
+in a call's `dims` argument — which nothing in this package does for a
+dimension beyond `N`, since `dims` is itself validated against the grid's
+`N` (`check_dims`, below). A field with *fewer* dimensions than the grid is
+still rejected, same as before.
 """
 function check_fields(grid::Grid{N}, fields::Tuple) where {N}
     check_field_shapes(grid, fields, 1)
@@ -26,10 +38,15 @@ end
 @inline check_field_shapes(::Grid, ::Tuple{}, i) = nothing
 @inline function check_field_shapes(grid::Grid{N}, fields::Tuple, i) where {N}
     f = fields[1]
-    f isa Field{T,N} where {T} || error(
-        "field at position $i has $(ndims(f)) dimensions, but grid has $N.")
-    size(f.data) == grid.nlocal || error(
-        "field at position $i has size $(size(f.data)), but grid.nlocal=$(grid.nlocal).")
+    f isa Field || error(
+        "field at position $i is not a Field (got $(typeof(f))).")
+    ndims(f) >= N || error(
+        "field at position $i has $(ndims(f)) dimensions, but grid has $N; a field may " *
+        "have extra trailing dimensions beyond the grid's own, but not fewer.")
+    size(f.data)[1:N] == grid.nlocal || error(
+        "field at position $i has size $(size(f.data)); its first $N dimension(s) must " *
+        "equal grid.nlocal=$(grid.nlocal) (any dimensions beyond the grid's own $N are " *
+        "unconstrained).")
     check_field_shapes(grid, Base.tail(fields), i + 1)
     return nothing
 end

@@ -21,7 +21,12 @@ GitHub Actions runs on pushes, pull requests, and manual dispatches. The Julia
 jobs test Julia 1.9 and the latest stable 1.x release on Linux, using the full
 MPI and threaded test driver and the quickstart example. Dependencies are resolved
 from `Project.toml` in each job rather than the development manifest. The CPU
-driver is invoked directly, without installing the unimplemented GPU test extras.
+driver is invoked directly; the CUDA/AMDGPU extensions are implemented and
+tested locally (see the package's `REDESIGN_PLAN.md`) but CI does not install
+their test extras (`test/Project.toml`, gitignored `test/Manifest.toml`) —
+doing so would add real, un-opted-into time and network cost to every job for
+runners that have no GPU to test against anyway. `test/runtests.jl` detects
+this and prints a one-line skip for the GPU test files rather than failing.
 
 A separate Node.js 22 job installs the npm lockfile dependencies and builds this
 site, including VitePress's internal link checks. These checks do not deploy the site.

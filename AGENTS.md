@@ -14,9 +14,22 @@ provides design context, including features that may not yet exist.
 - `src/halo_exchange.jl`: packing, dimension ordering, blocking and split API.
 - `src/validation.jl`: shape and duplicate-array checks.
 - `src/gather.jl`: gathering arrays using MPI derived datatypes.
-- `src/backend.jl`: backend hooks; GPU extensions declared in `Project.toml`
-  are not implemented in the current empty `ext/` directory.
-- `test/`: standalone Julia tests and an MPI subprocess driver.
+- `src/backend.jl`: backend dispatch stubs (`is_cuarray`/`is_rocarray`,
+  `pack_target`/`unpack_source`/`stage_send!`/`stage_recv!`), overridden by the
+  CUDA/AMDGPU extensions via ordinary multiple dispatch on the array type.
+- `ext/HaloArraysCUDAExt.jl` + `src/CUDAExt/`: real, tested (GPU present on
+  this machine) CUDA support — device-resident pack/unpack buffers
+  (`CUDACache`) plus host<->device staging around unchanged host-only MPI
+  transport. `ext/HaloArraysAMDGPUExt.jl` + `src/AMDGPUExt/`: structurally
+  identical ROCArray mirror, untested here (no AMD GPU available). Neither
+  manages device selection (rank-to-GPU assignment) or CUDA/ROCm-aware MPI —
+  both explicitly out of scope, documented in the extension files themselves.
+- `test/`: standalone Julia tests and an MPI subprocess driver. `test_cuda.jl`/
+  `test_amdgpu.jl` need real (not weak) CUDA/AMDGPU dependencies, so they run
+  under `test/Project.toml` (`HaloArrays` itself `Pkg.develop`ed via
+  `[sources]`), not the package root — `test/runtests.jl` handles this
+  automatically; each file skips gracefully via `functional()` if no usable
+  GPU is present.
 - `docs/`: VitePress Markdown site; `examples/`: runnable Julia examples.
 
 ## Implementation conventions

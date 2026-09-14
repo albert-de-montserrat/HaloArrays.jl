@@ -23,5 +23,8 @@ features:
 ## Current scope
 
 These pages describe the implementation in this checkout of version 0.1.0.
-The examples use CPU arrays. CUDA and AMDGPU extension entries exist in the
-package metadata, but their implementations are not present yet.
+The examples use CPU arrays. `CuArray`/`ROCArray` fields work as drop-in
+replacements wherever a `Field` wraps an array (see `ext/HaloArraysCUDAExt.jl`
+and `ext/HaloArraysAMDGPUExt.jl`); the CUDA extension is tested against real
+hardware, while the AMDGPU extension is a structurally identical port that has
+not been run against real ROCm hardware yet.

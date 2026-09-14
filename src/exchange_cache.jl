@@ -72,7 +72,14 @@ end
 # `SubArray`) — never the other way around. That also means `length(raw)` must be
 # an exact multiple of `sizeof(T)` at the point of reinterpreting, which may not
 # already hold if this slot was last grown for a differently-sized element type.
-function typed_buf!(raw::Vector{UInt8}, ::Type{T}, len::Integer) where {T}
+#
+# Typed `AbstractVector{UInt8}` rather than the concrete `Vector{UInt8}` (even
+# though only `Vector{UInt8}` reaches an actual MPI call, via `sendbuf`/`recvbuf`
+# below) so a GPU extension's device-buffer cache can call this same function
+# unchanged for its own `CuVector{UInt8}`/`ROCVector{UInt8}` raw buffers —
+# `resize!`/`reinterpret`/`view` all have GPU-array methods, so the logic here
+# needs no GPU-specific duplicate.
+function typed_buf!(raw::AbstractVector{UInt8}, ::Type{T}, len::Integer) where {T}
     nbytes = len * sizeof(T)
     if length(raw) < nbytes
         resize!(raw, max(nbytes, 2 * length(raw)))
