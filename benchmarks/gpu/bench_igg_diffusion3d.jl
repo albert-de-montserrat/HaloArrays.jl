@@ -1,27 +1,69 @@
 # GPU (CUDA) benchmark worker for ImplicitGlobalGrid.jl: same Cp-weighted 3D
 # heat diffusion physics as bench_haloarrays_diffusion3d.jl (its twin, see
 # its header comment for the full rationale and T_eff read/write count),
-# mirroring ImplicitGlobalGrid.jl's own
-# examples/diffusion3D_multigpu_CuArrays_novis.jl GPU idiom directly. Prints
-# one CSV line on rank 0, same schema as the HaloArrays worker.
-#
-# No overlap variant here: IGG's `update_halo!` has no start!/finish! split
-# (see bench_igg_hide.jl for the same point on the hide-communication side) —
-# not applicable to this plain-blocking comparison anyway.
+# using the same ParallelStencil CUDA kernels as the HaloArrays worker. This
+# is the blocking baseline: the full temperature update and wall kernels
+# complete before `update_halo!`. Prints one CSV line on rank 0, with the same
+# schema as the HaloArrays worker.
 import Pkg
 Pkg.activate(joinpath(@__DIR__); io=devnull)
 using CUDA                # before ImplicitGlobalGrid, to activate its CUDA support (its own convention)
+using ParallelStencil
+@init_parallel_stencil(CUDA, Float64, 3)
 using ImplicitGlobalGrid
 import MPI
 include(joinpath(@__DIR__, "metrics_common.jl"))
 
-@views d_xa(A) = A[2:end, :, :] .- A[1:end-1, :, :]
-@views d_xi(A) = A[2:end, 2:end-1, 2:end-1] .- A[1:end-1, 2:end-1, 2:end-1]
-@views d_ya(A) = A[:, 2:end, :] .- A[:, 1:end-1, :]
-@views d_yi(A) = A[2:end-1, 2:end, 2:end-1] .- A[2:end-1, 1:end-1, 2:end-1]
-@views d_za(A) = A[:, :, 2:end] .- A[:, :, 1:end-1]
-@views d_zi(A) = A[2:end-1, 2:end-1, 2:end] .- A[2:end-1, 2:end-1, 1:end-1]
-@views inn(A) = A[2:end-1, 2:end-1, 2:end-1]
+@parallel_indices (i, j, k) function flux_x!(qx, T, lam, dx)
+    qx[i, j, k] = -lam * (T[i + 1, j + 1, k + 1] - T[i, j + 1, k + 1]) / dx
+    return nothing
+end
+
+@parallel_indices (i, j, k) function flux_y!(qy, T, lam, dy)
+    qy[i, j, k] = -lam * (T[i + 1, j + 1, k + 1] - T[i + 1, j, k + 1]) / dy
+    return nothing
+end
+
+@parallel_indices (i, j, k) function flux_z!(qz, T, lam, dz)
+    qz[i, j, k] = -lam * (T[i + 1, j + 1, k + 1] - T[i + 1, j + 1, k]) / dz
+    return nothing
+end
+
+@parallel_indices (i, j, k) function update_temperature!(T, Cp, qx, qy, qz, dt, dx, dy, dz)
+    dTdt = (-(qx[i + 1, j, k] - qx[i, j, k]) / dx -
+        (qy[i, j + 1, k] - qy[i, j, k]) / dy -
+        (qz[i, j, k + 1] - qz[i, j, k]) / dz) / Cp[i + 1, j + 1, k + 1]
+    T[i + 1, j + 1, k + 1] += dt * dTdt
+    return nothing
+end
+
+@parallel_indices (i, j, k) function noflux_xlo!(T)
+    T[i, j, k] = T[i + 1, j, k]
+    return nothing
+end
+
+@parallel_indices (i, j, k) function noflux_xhi!(T)
+    T[i, j, k] = T[i - 1, j, k]
+    return nothing
+end
+
+@parallel_indices (i, j, k) function noflux_ylo!(T)
+    T[i, j, k] = T[i, j + 1, k]
+    return nothing
+end
+
+@parallel_indices (i, j, k) function noflux_yhi!(T)
+    T[i, j, k] = T[i, j - 1, k]
+    return nothing
+end
+
+function apply_vertical_noflux!(T, nx, ny, nz)
+    @parallel (1:1, 1:ny, 1:nz) noflux_xlo!(T)
+    @parallel (nx:nx, 1:ny, 1:nz) noflux_xhi!(T)
+    @parallel (1:nx, 1:1, 1:nz) noflux_ylo!(T)
+    @parallel (1:nx, ny:ny, 1:nz) noflux_yhi!(T)
+    return nothing
+end
 
 @views function main()
     N      = parse(Int, ARGS[1])
@@ -33,7 +75,8 @@ include(joinpath(@__DIR__, "metrics_common.jl"))
     nx, ny, nz  = N, N, N
     hw = 1
 
-    me, _, nprocs = init_global_grid(nx, ny, nz; periodx=1, periody=1, periodz=1, quiet=true)
+    me, _, nprocs = init_global_grid(
+        nx, ny, nz; periodx=0, periody=0, periodz=1, quiet=true)
     dx = lx / (nx_g() - 1)
     dy = ly / (ny_g() - 1)
     dz = lz / (nz_g() - 1)
@@ -47,6 +90,7 @@ include(joinpath(@__DIR__, "metrics_common.jl"))
             100 * exp(-((x_g(i, dx, T) - lx / 2) / 2)^2 - ((y_g(j, dy, T) - ly / 2) / 2)^2 - ((z_g(k, dz, T) - lz / 3.0) / 2)^2) +
             50 * exp(-((x_g(i, dx, T) - lx / 2) / 2)^2 - ((y_g(j, dy, T) - ly / 2) / 2)^2 - ((z_g(k, dz, T) - lz / 1.5) / 2)^2)
         for i in 1:nx, j in 1:ny, k in 1:nz])
+    apply_vertical_noflux!(T, nx, ny, nz)
     update_halo!(T)
 
     dt = min(dx * dx, dy * dy, dz * dz) * cp_min / lam / 8.1
@@ -57,14 +101,15 @@ include(joinpath(@__DIR__, "metrics_common.jl"))
     qx = CUDA.zeros(Float64, nx - 1, ny - 2, nz - 2)
     qy = CUDA.zeros(Float64, nx - 2, ny - 1, nz - 2)
     qz = CUDA.zeros(Float64, nx - 2, ny - 2, nz - 1)
-    dTedt = CUDA.zeros(Float64, nx - 2, ny - 2, nz - 2)
-
     function step!()
-        qx .= .-lam .* d_xi(T) ./ dx
-        qy .= .-lam .* d_yi(T) ./ dy
-        qz .= .-lam .* d_zi(T) ./ dz
-        dTedt .= (1.0 ./ inn(Cp)) .* (.-d_xa(qx) ./ dx .- d_ya(qy) ./ dy .- d_za(qz) ./ dz)
-        T[2:end-1, 2:end-1, 2:end-1] .= inn(T) .+ dt .* dTedt
+        @parallel flux_x!(qx, T, lam, dx)
+        @parallel flux_y!(qy, T, lam, dy)
+        @parallel flux_z!(qz, T, lam, dz)
+        @parallel (1:nx-2, 1:ny-2, 1:nz-2) update_temperature!(T, Cp, qx, qy, qz, dt, dx, dy, dz)
+        @parallel (1:1, 1:ny, 1:nz) noflux_xlo!(T)
+        @parallel (nx:nx, 1:ny, 1:nz) noflux_xhi!(T)
+        @parallel (1:nx, 1:1, 1:nz) noflux_ylo!(T)
+        @parallel (1:nx, ny:ny, 1:nz) noflux_yhi!(T)
         update_halo!(T)
         return nothing
     end

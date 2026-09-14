@@ -26,24 +26,23 @@ srun -n 1 --uenv "$UENV" --view=juliaup julia --project=. --startup-file=no -e \
     'using Pkg; Pkg.instantiate()'
 
 NTASKS_MATRIX=(1 2 4)
-SIZES=(128 256 384)
+# Weak scaling: one rank/GPU and a constant 128^3 local domain per GPU.
+N=128
 NITER=150
 
 OUT=results_hide_gpu.csv
 echo "pkg,nprocs,N,niter,time_s,bytes,gctime_s,pauses,full_sweep,gpu_bytes,t_eff_gbs,peak_bw_gbs,pct_of_peak" > "$OUT"
 
 for n in "${NTASKS_MATRIX[@]}"; do
-  for N in "${SIZES[@]}"; do
-    for script in bench_haloarrays_hide.jl bench_igg_hide.jl; do
-      echo "-- $script  ntasks=$n  N=$N --" >&2
-      line=$(srun -n "$n" --uenv "$UENV" --view=juliaup julia --project=. --startup-file=no "$script" "$N" "$NITER" 2>err.log | grep '^RESULT' || true)
-      if [[ -z "$line" ]]; then
-        echo "   FAILED (see err.log):" >&2
-        tail -40 err.log >&2
-        continue
-      fi
-      echo "${line#RESULT,}" >> "$OUT"
-    done
+  for script in bench_haloarrays_hide.jl bench_igg_hide.jl; do
+    echo "-- $script  gpus=$n  local_N=${N}^3 --" >&2
+    line=$(srun -n "$n" --uenv "$UENV" --view=juliaup julia --project=. --startup-file=no "$script" "$N" "$NITER" 2>err.log | grep '^RESULT' || true)
+    if [[ -z "$line" ]]; then
+      echo "   FAILED (see err.log):" >&2
+      tail -40 err.log >&2
+      continue
+    fi
+    echo "${line#RESULT,}" >> "$OUT"
   done
 done
 

@@ -12,32 +12,27 @@
 #
 # Unlike the CPU worker's plain nested for-loop (fine for a host Array, but
 # scalar-indexing a CuArray would either error or be catastrophically slow),
-# this needs a real `@cuda`-launched kernel — a standard 3D thread/block grid
-# with bounds checking, not exhaustively tuned but a reasonable default.
+# this uses a ParallelStencil kernel launched over the requested k-plane range.
 import Pkg
 Pkg.activate(joinpath(@__DIR__); io=devnull)
 using CUDA
+using ParallelStencil
+@init_parallel_stencil(CUDA, Float64, 3)
 import MPI
 using HaloArrays
 include(joinpath(@__DIR__, "metrics_common.jl"))
 
-function laplacian_kernel!(Anew, A, dt, N, kstart, kstop)
-    i = (blockIdx().x - 1) * blockDim().x + threadIdx().x + 1
-    j = (blockIdx().y - 1) * blockDim().y + threadIdx().y + 1
-    k = (blockIdx().z - 1) * blockDim().z + threadIdx().z + kstart - 1
-    if i <= N - 1 && j <= N - 1 && k <= kstop
-        @inbounds Anew[i, j, k] = A[i, j, k] + dt * (
-            A[i-1, j, k] + A[i+1, j, k] + A[i, j-1, k] + A[i, j+1, k] + A[i, j, k-1] + A[i, j, k+1] - 6 * A[i, j, k])
-    end
+@parallel_indices (i, j, k) function laplacian_kernel!(Anew, A, dt)
+    Anew[i, j, k] = A[i, j, k] + dt * (
+        A[i - 1, j, k] + A[i + 1, j, k] + A[i, j - 1, k] +
+        A[i, j + 1, k] + A[i, j, k - 1] + A[i, j, k + 1] - 6 * A[i, j, k])
     return nothing
 end
 
 function launch_stencil!(Anew, A, dt, N, kstart, kstop)
     nk = kstop - kstart + 1
     nk <= 0 && return nothing
-    threads = (8, 8, min(4, nk))
-    blocks = (cld(N - 2, threads[1]), cld(N - 2, threads[2]), cld(nk, threads[3]))
-    @cuda threads = threads blocks = blocks laplacian_kernel!(Anew, A, dt, N, kstart, kstop)
+    @parallel (2:N-1, 2:N-1, kstart:kstop) laplacian_kernel!(Anew, A, dt)
     return nothing
 end
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # SLURM submission + matrix driver for the diffusion3D GPU comparison
-# (bench_haloarrays_diffusion3d.jl vs bench_igg_diffusion3d.jl). Submit with:
+# Runs blocking and communication-hiding variants for both HaloArrays and
+# ImplicitGlobalGrid. Submit with:
 #   sbatch slurm_diffusion3d.sh
 #
 # #SBATCH directives and env vars mirror this workspace's own CI convention
@@ -34,27 +35,30 @@ echo "Instantiating benchmarks/gpu environment (single task)..."
 srun -n 1 --uenv "$UENV" --view=juliaup julia --project=. --startup-file=no -e \
     'using Pkg; Pkg.instantiate()'
 
-# GH200 has much more HBM than the CPU harness's workstation-sized matrix
-# (benchmarks/run_comparison.sh's N∈{32,64,128}) — start larger; edit freely.
+# Weak-scaling matrix: each MPI rank owns one GPU and a fixed 128^3 local
+# domain. Increasing ntasks therefore increases both the GPU count and the
+# global problem size while work and memory per GPU remain constant.
 NTASKS_MATRIX=(1 2 4)
-SIZES=(128 256 384)
+N=128
 NITER=150
 
 OUT=results_diffusion3d_gpu.csv
 echo "pkg,nprocs,N,niter,time_s,bytes,gctime_s,pauses,full_sweep,gpu_bytes,t_eff_gbs,peak_bw_gbs,pct_of_peak" > "$OUT"
 
 for n in "${NTASKS_MATRIX[@]}"; do
-  for N in "${SIZES[@]}"; do
-    for script in bench_haloarrays_diffusion3d.jl bench_igg_diffusion3d.jl; do
-      echo "-- $script  ntasks=$n  N=$N --" >&2
-      line=$(srun -n "$n" --uenv "$UENV" --view=juliaup julia --project=. --startup-file=no "$script" "$N" "$NITER" 2>err.log | grep '^RESULT' || true)
-      if [[ -z "$line" ]]; then
-        echo "   FAILED (see err.log):" >&2
-        tail -40 err.log >&2
-        continue
-      fi
-      echo "${line#RESULT,}" >> "$OUT"
-    done
+  for script in \
+    bench_haloarrays_diffusion3d.jl \
+    bench_haloarrays_diffusion3d_hide.jl \
+    bench_igg_diffusion3d.jl \
+    bench_igg_diffusion3d_hide.jl; do
+    echo "-- $script  gpus=$n  local_N=${N}^3 --" >&2
+    line=$(srun -n "$n" --uenv "$UENV" --view=juliaup julia --project=. --startup-file=no "$script" "$N" "$NITER" 2>err.log | grep '^RESULT' || true)
+    if [[ -z "$line" ]]; then
+      echo "   FAILED (see err.log):" >&2
+      tail -40 err.log >&2
+      continue
+    fi
+    echo "${line#RESULT,}" >> "$OUT"
   done
 done
 

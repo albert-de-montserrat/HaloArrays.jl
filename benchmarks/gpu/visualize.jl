@@ -1,7 +1,7 @@
 # Reads the GPU comparison result CSVs (produced by slurm_diffusion3d.sh /
 # slurm_hide.sh on the cluster, copied back locally) and renders grouped-bar
-# PNGs (HaloArrays vs ImplicitGlobalGrid, grouped by problem size N, one
-# chart per metric per rank count) plus a markdown summary table. Needs no
+# PNGs (blocking and communication-hiding variants, grouped by problem size
+# N, one chart per metric per rank count) plus a markdown summary table. Needs no
 # GPU itself — run this after copying results_*_gpu.csv back from the
 # cluster, e.g.:
 #   julia --project=benchmarks/gpu benchmarks/gpu/visualize.jl
@@ -84,7 +84,7 @@ end
 
 function write_summary(all_results::Dict{String,Vector{<:NamedTuple}}, outpath::AbstractString)
     open(outpath, "w") do io
-        println(io, "# HaloArrays.jl vs ImplicitGlobalGrid.jl — GPU cluster benchmark summary\n")
+        println(io, "# HaloArrays.jl vs ImplicitGlobalGrid.jl — GPU blocking/overlap benchmark summary\n")
         println(io, "**Read this before comparing raw numbers:** `IGG_CUDAAWARE_MPI=1` is set for these")
         println(io, "runs (see slurm_*.sh) — ImplicitGlobalGrid gets real GPU-direct MPI transport on")
         println(io, "this cluster, while HaloArrays.jl's CUDA extension always stages through host")
