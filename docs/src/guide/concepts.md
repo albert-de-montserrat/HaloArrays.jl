@@ -58,5 +58,5 @@ grid. Grids built on the same topology share its communicator, and exchange
 messages use the same tag; separate caches alone do not isolate those messages.
 
 `origin`, `origin_on_vertex`, and `centered` are coordinate metadata on `Grid`.
-They do not generate coordinates or change halo widths. See [the API](../api#grid)
+They do not generate coordinates or change halo widths. See [the API](../api.md#grid)
 for the parity rules used when constructing centered grids.

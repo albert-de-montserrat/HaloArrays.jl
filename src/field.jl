@@ -52,6 +52,11 @@ function field(A::AbstractArray{T,N}; halowidths::NTuple{N,Integer} = ntuple(_ -
     return Field{T,N,typeof(A)}(A, Tuple(hw))
 end
 
+"""
+    halowidths(f::Field) :: NTuple{N,Int}
+
+The per-dimension halo widths `f` was constructed with.
+"""
 halowidths(f::Field) = f.halowidths
 
 Base.size(f::Field, args...) = size(f.data, args...)

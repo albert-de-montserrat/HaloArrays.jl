@@ -121,13 +121,16 @@ neighbors avoid the still-pending last-dimension halo columns can be updated
 immediately; only the one column on each side immediately adjacent to that
 halo has to wait for `finish!`:
 
-<<< ../../examples/hide_communication.jl
+```@eval
+using Markdown
+Markdown.parse("```julia\n" * read(joinpath(@__DIR__, "..", "..", "..", "examples", "hide_communication.jl"), String) * "\n```")
+```
 
 The example computes the same diffusion step twice — once the straightforward
 way (`update_halo!` then the whole interior in one pass) and once with the
 overlap split — and asserts the two results are identical, to make the point
 that splitting the compute changes *when* work happens, not *what* it
-computes. Run it the same way as [the quickstart](./getting-started):
+computes. Run it the same way as [the quickstart](./getting-started.md):
 
 ```sh
 julia --project=. examples/hide_communication.jl
@@ -151,7 +154,7 @@ above) so it still runs if your inserted compute throws — an unfinished
 handle otherwise leaves the grid permanently "pending" and every later
 exchange on it will error. Treat the handle itself as opaque. Different
 `Grid`s remain fully independent — see
-[multiple grids](./concepts#multiple-grids) for communicator isolation.
+[multiple grids](./concepts.md#multiple-grids) for communicator isolation.
 
 ## Boundaries
 
@@ -176,7 +179,7 @@ with "periodic dimension split across exactly 2 ranks") for a minimal
 reproduction. This is the kind of bug a rank-uniform test fixture cannot
 see — every existing correctness test filled each rank's whole array with
 one repeated value, which happens to make the swapped and correct halos
-identical — which is why the [coordinate helpers](./coordinates) worked
+identical — which is why the [coordinate helpers](./coordinates.md) worked
 example (position-dependent data, checked against an exact conservation
 law) is a better correctness oracle for this class of issue than "assert
 against the rank number."

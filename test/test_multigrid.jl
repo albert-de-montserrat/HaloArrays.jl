@@ -13,8 +13,22 @@ MPI.Init()
 comm = MPI.COMM_WORLD
 rank = MPI.Comm_rank(comm)
 
+# Fill value encodes both the owning rank and this cell's position within
+# that rank's own array (see test_halo_exchange.jl for the full rationale and
+# a hand-verified derivation of why the per-dimension decomposition below is
+# exact even across corners) — a rank-only fill can't tell a correctly
+# sourced neighbor value from one read at the wrong offset.
+const FILL_SCALE = 100_000.0
+
+fill_value(rank::Integer, nlocal::NTuple{N,Int}, ci::CartesianIndex{N}) where {N} =
+    Float64(rank) * FILL_SCALE + Float64(LinearIndices(nlocal)[ci])
+
+filled_array(::Type{T}, rank::Integer, nlocal::NTuple{N,Int}) where {T,N} =
+    T[T(fill_value(rank, nlocal, ci)) for ci in CartesianIndices(nlocal)]
+
 function expected_value(topo, halowidths::NTuple{N,Int}, dims, nlocal::NTuple{N,Int}, ci::CartesianIndex{N}) where {N}
     offset = zeros(Int, N)
+    source_idx = collect(Tuple(ci))
     for d in dims
         hw = halowidths[d]
         idx = ci[d]
@@ -22,19 +36,23 @@ function expected_value(topo, halowidths::NTuple{N,Int}, dims, nlocal::NTuple{N,
         dir == 0 && continue
         if topo.periods[d] || (0 <= topo.coords[d] + dir <= topo.dims[d] - 1)
             offset[d] += dir
+            nA = nlocal[d]
+            source_idx[d] = dir == -1 ? (nA - 2hw + idx) : (idx - nA + 2hw)
         end
     end
-    all(iszero, offset) && return rank
+    all(iszero, offset) && return rank, ci
     target_coords = ntuple(N) do d
         c = topo.coords[d] + offset[d]
         topo.periods[d] ? mod(c, topo.dims[d]) : c
     end
-    return MPI.Cart_rank(topo.comm, collect(target_coords))
+    target_rank = MPI.Cart_rank(topo.comm, collect(target_coords))
+    return target_rank, CartesianIndex(source_idx...)
 end
 
 function check(topo, f, dims, nlocal, ::Type{T}) where {T}
     for ci in CartesianIndices(f.data)
-        expected = T(expected_value(topo, f.halowidths, dims, nlocal, ci))
+        target_rank, source_ci = expected_value(topo, f.halowidths, dims, nlocal, ci)
+        expected = T(fill_value(target_rank, nlocal, source_ci))
         f.data[ci] == expected || return false
     end
     return true
@@ -51,8 +69,8 @@ end
 
     niter = 25
     for iter in 1:niter
-        A1 = fill(Float64(rank), g1.nlocal)
-        A2 = fill(Float32(rank), g2.nlocal)
+        A1 = filled_array(Float64, rank, g1.nlocal)
+        A2 = filled_array(Float32, rank, g2.nlocal)
         f1 = field(A1; halowidths=(1, 2))
         f2 = field(A2; halowidths=(2, 1))
 

@@ -49,14 +49,17 @@ jobs:
   docs:
     name: Documentation
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v7
+      - uses: julia-actions/setup-julia@v3
         with:
-          node-version: '22'
-          cache: npm
+          version: '1'
       - name: Install documentation dependencies
-        run: npm ci
-      - name: Build documentation and check links
-        run: npm run docs:build
+        run: julia --project=docs --startup-file=no -e 'using Pkg; Pkg.instantiate()'
+      - name: Build documentation
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: julia --project=docs --startup-file=no docs/make.jl

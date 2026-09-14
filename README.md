@@ -11,8 +11,11 @@ julia --project=. -e 'using Pkg; Pkg.instantiate()'
 julia --project=. examples/quickstart.jl
 ```
 
-The current implementation targets CPU arrays. GPU extension declarations are
-present in the package metadata, but the extension implementations are not yet available.
+CUDA support (`HaloArraysCUDAExt`) is implemented and tested on real hardware,
+including a fast path for `CellArrays.jl`'s `CellArray` type
+(`HaloArraysCellArraysExt`). AMDGPU support (`HaloArraysAMDGPUExt`) is
+implemented but has not been run on real ROCm hardware. See
+[AGENTS.md](AGENTS.md) for the current per-backend test status.
 
 ## Documentation
 

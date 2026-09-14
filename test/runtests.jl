@@ -23,7 +23,7 @@ const THREADED_FILES = ["test_threaded_pack.jl"]
 # over a small nprocs matrix, same reasoning as THREADED_FILES: this project
 # has at most one physical GPU to test against, so higher rank counts add
 # process-oversubscription time, not correctness coverage.
-const GPU_FILES = ["test_cuda.jl", "test_amdgpu.jl", "test_cellarrays_cuda.jl"]
+const GPU_FILES = ["test_cuda.jl", "test_amdgpu.jl", "test_cellarrays_cuda.jl", "test_allocations_cuda.jl"]
 const GPU_NPROCS_MATRIX = [1, 2]
 # test_cellarrays.jl needs test/'s CellArrays dependency for the same reason
 # (CellArrays is only a weakdep of the package root), but has no GPU-hardware

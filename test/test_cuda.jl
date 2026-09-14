@@ -21,12 +21,24 @@ MPI.Init()
 comm = MPI.COMM_WORLD
 rank = MPI.Comm_rank(comm)
 
-# Same analytic model as test_halo_exchange.jl's check_halo, generalized to
-# compare a (possibly GPU-resident) field's *host copy* against the expected
-# value, since a GPU field never leaves the device otherwise.
+# Same analytic model as test_halo_exchange.jl's check_halo (see that file
+# for the full rationale on encoding position, not just rank, and why the
+# per-dimension source-index decomposition below is exact even at corners),
+# generalized to compare a (possibly GPU-resident) field's *host copy*
+# against the expected value, since a GPU field never leaves the device
+# otherwise.
+const FILL_SCALE = 100_000.0
+
+fill_value(rank::Integer, nlocal::NTuple{N,Int}, ci::CartesianIndex{N}) where {N} =
+    Float64(rank) * FILL_SCALE + Float64(LinearIndices(nlocal)[ci])
+
+filled_array(::Type{T}, rank::Integer, nlocal::NTuple{N,Int}) where {T,N} =
+    T[T(fill_value(rank, nlocal, ci)) for ci in CartesianIndices(nlocal)]
+
 function expected_value(grid::Grid{N}, halowidths::NTuple{N,Int}, dims, nlocal::NTuple{N,Int}, ci::CartesianIndex{N}) where {N}
     topo = grid.topology
     offset = zeros(Int, N)
+    source_idx = collect(Tuple(ci))
     for d in dims
         hw = halowidths[d]
         idx = ci[d]
@@ -34,15 +46,19 @@ function expected_value(grid::Grid{N}, halowidths::NTuple{N,Int}, dims, nlocal::
         dir == 0 && continue
         if topo.periods[d] || (0 <= topo.coords[d] + dir <= topo.dims[d] - 1)
             offset[d] += dir
+            nA = nlocal[d]
+            source_idx[d] = dir == -1 ? (nA - 2hw + idx) : (idx - nA + 2hw)
         end
     end
-    all(iszero, offset) && return Float64(rank)
+    if all(iszero, offset)
+        return fill_value(rank, nlocal, ci)
+    end
     target_coords = ntuple(N) do d
         c = topo.coords[d] + offset[d]
         topo.periods[d] ? mod(c, topo.dims[d]) : c
     end
     target_rank = MPI.Cart_rank(topo.comm, collect(target_coords))
-    return Float64(target_rank)
+    return fill_value(target_rank, nlocal, CartesianIndex(source_idx...))
 end
 
 function check_halo_gpu(grid::Grid{N}, f::Field{T,N}, dims, nlocal) where {T,N}
@@ -65,8 +81,8 @@ end
     nlocal = ntuple(_ -> 6, N)
     g = grid(topo, nlocal)
 
-    A = CuArray(fill(Float64(rank), nlocal))
-    B = CuArray(fill(Float32(rank), nlocal))
+    A = CuArray(filled_array(Float64, rank, nlocal))
+    B = CuArray(filled_array(Float32, rank, nlocal))
     hwA = ntuple(_ -> 1, N)
     hwB = ntuple(d -> d == 1 ? 2 : 1, N)
     fA = field(A; halowidths=hwA)
@@ -82,7 +98,7 @@ end
     topo = topology(ntuple(_ -> 0, N); comm=comm, periods=ntuple(_ -> true, N))
     nlocal = ntuple(_ -> 6, N)
     g = grid(topo, nlocal)
-    A = CuArray(fill(Float64(rank), nlocal))
+    A = CuArray(filled_array(Float64, rank, nlocal))
     fA = field(A; halowidths=ntuple(_ -> 1, N))
 
     handle = halo_exchange_start!(g, fA)
@@ -97,8 +113,8 @@ end
     nlocal = (6, 6)
     g = grid(topo, nlocal)
 
-    Acpu = fill(Float64(rank), nlocal)
-    Agpu = CuArray(fill(Float64(rank), nlocal))
+    Acpu = filled_array(Float64, rank, nlocal)
+    Agpu = CuArray(filled_array(Float64, rank, nlocal))
     fcpu = field(Acpu; halowidths=(1, 1))
     fgpu = field(Agpu; halowidths=(1, 1))
 
@@ -117,8 +133,8 @@ end
     g1 = grid(topo1, (6, 6))
     g2 = grid(topo2, (11, 9))
 
-    A1 = CuArray(fill(Float64(rank), g1.nlocal))
-    A2 = CuArray(fill(Float32(rank), g2.nlocal))
+    A1 = CuArray(filled_array(Float64, rank, g1.nlocal))
+    A2 = CuArray(filled_array(Float32, rank, g2.nlocal))
     f1 = field(A1; halowidths=(1, 2))
     f2 = field(A2; halowidths=(2, 1))
 

@@ -14,6 +14,15 @@ provides design context, including features that may not yet exist.
 - `src/halo_exchange.jl`: packing, dimension ordering, blocking and split API.
 - `src/validation.jl`: shape and duplicate-array checks.
 - `src/gather.jl`: gathering arrays using MPI derived datatypes.
+- `src/reduce.jl`: `global_sum`/`global_max`/`global_min`/`global_reduce`/
+  `global_allreduce` — thin `Topology`/`Grid`-based wrappers around
+  `MPI.Reduce`/`MPI.Allreduce` for one-scalar-per-rank diagnostics; reduce
+  local array data with plain Julia first, then pass the resulting scalar in.
+  `global_norm` is the one exception that takes the local array itself (a
+  `p`-norm's combining step, sum-of-powers then a single root at the end, is
+  easy to get wrong by hand, unlike a plain associative op). None of these
+  need GPU-specific code: the local step runs generically on whatever
+  backend the data already lives on, and only a host scalar ever reaches MPI.
 - `src/backend.jl`: backend dispatch stubs (`is_cuarray`/`is_rocarray`,
   `pack_target`/`unpack_source`/`stage_send!`/`stage_recv!`), overridden by the
   CUDA/AMDGPU extensions via ordinary multiple dispatch on the array type.

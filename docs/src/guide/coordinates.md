@@ -12,7 +12,7 @@ position rather than local index.
 
 In the old package, `nx_g()` was a grid-wide property: one active global
 grid, one global size. Here, [the design deliberately has no grid-wide halo
-width](./concepts) — each `Field` declares its own — so the *global* size a
+width](./concepts.md) — each `Field` declares its own — so the *global* size a
 field sees also depends on that field's own halo width: a wider halo means
 more cells are duplicated across each rank boundary, so a field with
 `halowidths=(2,2)` sees a smaller global domain than one with
@@ -56,10 +56,13 @@ opposite sign, so summed over a closed domain the update telescopes to zero,
 independent of how the domain is decomposed across ranks. The example checks
 this directly, which makes it a real correctness check rather than a
 doesn't-crash smoke test: a wrong halo exchange (this exact package once had
-one — see the note in [halo exchange](./halo-exchange) about the 2-rank
+one — see the note in [halo exchange](./halo-exchange.md) about the 2-rank
 periodic ring bug) breaks conservation immediately and visibly.
 
-<<< ../../examples/diffusion3D.jl
+```@eval
+using Markdown
+Markdown.parse("```julia\n" * read(joinpath(@__DIR__, "..", "..", "..", "examples", "diffusion3D.jl"), String) * "\n```")
+```
 
 Run it from the repository root:
 

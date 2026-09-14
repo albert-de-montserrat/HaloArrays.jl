@@ -1,3 +1,4 @@
+```@raw html
 ---
 layout: home
 hero:
@@ -19,6 +20,7 @@ features:
   - title: Split-phase exchange
     details: Start an exchange, perform independent work, then finish the final dimension's communication.
 ---
+```
 
 ## Current scope
 

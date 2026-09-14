@@ -16,7 +16,10 @@ Each rank stores an array of size `(10, 10)`: an `(8, 8)` interior surrounded by
 one layer of halo cells. Interior values identify the rank that owns them.
 Periodic boundaries ensure every face receives data, even in a one-rank run.
 
-<<< ../../examples/quickstart.jl
+```@eval
+using Markdown
+Markdown.parse("```julia\n" * read(joinpath(@__DIR__, "..", "..", "..", "examples", "quickstart.jl"), String) * "\n```")
+```
 
 Run the example from the repository root:
 
@@ -36,7 +39,7 @@ end
 
 The example asserts that received face values match the neighboring ranks.
 `topology((0, 0))` lets MPI choose the process layout; it does not describe the
-number of cells. Read [the core concepts](./concepts) for sizing and ownership.
+number of cells. Read [the core concepts](./concepts.md) for sizing and ownership.
 
 ## MPI lifetime
 

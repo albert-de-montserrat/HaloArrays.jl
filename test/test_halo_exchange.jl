@@ -1,16 +1,28 @@
 # Correctness test for update_halo!/halo_exchange_start!+finish!.
 #
-# Strategy: fill each rank's local array entirely with its own rank (as a
-# Float64). After update_halo!, every cell's expected value is derived
+# Strategy: fill each rank's local array with a value that encodes *both* its
+# own rank and this cell's position within that rank's array (via
+# LinearIndices), not just the rank. A rank-only fill cannot tell a correctly
+# sourced neighbor value from one read at the wrong offset within that
+# neighbor's array — every cell on one side of a halo boundary holds the same
+# value either way, which is exactly the blind spot that let the periodic-2-
+# rank tag bug below go undetected until it was found by hand (see that
+# test's comment). After update_halo!, every cell's expected value is derived
 # analytically by walking the dimensions in the same order the exchange
-# processed them and tracking which rank's data ends up occupying that cell —
-# this naturally covers corners (a cell that is halo in two dimensions ends up
-# holding a diagonal neighbor's value, propagated via the second dimension's
-# exchange carrying forward what the first dimension's exchange already wrote)
-# and non-periodic domain boundaries (a halo side with no neighbor is simply
-# never written, so it keeps this rank's own value, and later dimensions
-# propagate *that* to their own neighbors exactly as they would any other
-# data).
+# processed them and tracking not just which rank's data ends up occupying
+# that cell but the exact source index within that rank's *original* array —
+# this decomposes independently per dimension even for a corner cell (halo in
+# two dimensions at once): dimension d's source-index mapping depends only on
+# `ci[d]`/`halowidths[d]`/`nlocal[d]` (identical on every rank, since a grid's
+# `nlocal` and a field's `halowidths` are shared across ranks), and which
+# neighbor serves dimension d is likewise independent of any other
+# dimension's outcome, so applying each dimension's mapping directly to the
+# original `ci` gives exactly the same result the real sequential exchange's
+# chained corner propagation would (verified by hand against the existing
+# 2-rank tag-bug test's known-correct indices before relying on it here).
+# Non-periodic domain boundaries still work exactly as before (a halo side
+# with no neighbor is simply never written, so both the rank and the source
+# index stay this rank's own).
 push!(LOAD_PATH, joinpath(@__DIR__, "..", "src"))
 using Test
 import MPI
@@ -20,11 +32,22 @@ MPI.Init()
 comm = MPI.COMM_WORLD
 rank = MPI.Comm_rank(comm)
 
+# Large enough to keep (rank, linear index) pairs distinguishable for every
+# nlocal/nprocs combination this file uses, without colliding across ranks.
+const FILL_SCALE = 100_000.0
+
+fill_value(rank::Integer, nlocal::NTuple{N,Int}, ci::CartesianIndex{N}) where {N} =
+    Float64(rank) * FILL_SCALE + Float64(LinearIndices(nlocal)[ci])
+
+filled_array(rank::Integer, nlocal::NTuple{N,Int}) where {N} =
+    Float64[fill_value(rank, nlocal, ci) for ci in CartesianIndices(nlocal)]
+
 # Expected value at local CartesianIndex `ci` of a field with `halowidths` on
 # `grid`, after `update_halo!(grid, field; dims)`.
 function expected_value(grid::Grid{N}, halowidths::NTuple{N,Int}, dims, nlocal::NTuple{N,Int}, ci::CartesianIndex{N}) where {N}
     topo = grid.topology
     offset = zeros(Int, N)
+    source_idx = collect(Tuple(ci))
     for d in dims
         hw = halowidths[d]
         idx = ci[d]
@@ -32,18 +55,26 @@ function expected_value(grid::Grid{N}, halowidths::NTuple{N,Int}, dims, nlocal::
         dir == 0 && continue
         if topo.periods[d] || (0 <= topo.coords[d] + dir <= topo.dims[d] - 1)
             offset[d] += dir
+            nA = nlocal[d]
+            # This rank's low halo receives its lo-neighbor's high-direction
+            # send (interior strip nA-2hw+1:nA-hw); the high halo receives
+            # its hi-neighbor's low-direction send (interior strip
+            # hw+1:2hw) — see the EXCHANGE_TAG_LO/HI comment in
+            # halo_exchange.jl for why direction, not post order, decides
+            # this. Both reduce to the same affine map in terms of `idx`.
+            source_idx[d] = dir == -1 ? (nA - 2hw + idx) : (idx - nA + 2hw)
         end
         # else: no neighbor on that side in dimension d; nothing changes for dim d.
     end
     if all(iszero, offset)
-        return Float64(rank)
+        return fill_value(rank, nlocal, ci)
     end
     target_coords = ntuple(N) do d
         c = topo.coords[d] + offset[d]
         topo.periods[d] ? mod(c, topo.dims[d]) : c
     end
     target_rank = MPI.Cart_rank(topo.comm, collect(target_coords))
-    return Float64(target_rank)
+    return fill_value(target_rank, nlocal, CartesianIndex(source_idx...))
 end
 
 function check_halo(grid::Grid{N}, f::Field{Float64,N}, dims, nlocal) where {N}
@@ -66,8 +97,8 @@ end
     nlocal = ntuple(_ -> 6, N)
     g = grid(topo, nlocal)
 
-    A = fill(Float64(rank), nlocal)
-    B = fill(Float64(rank), nlocal)
+    A = filled_array(rank, nlocal)
+    B = filled_array(rank, nlocal)
     hwA = ntuple(_ -> 1, N)
     hwB = ntuple(d -> d == 1 ? 2 : 1, N)
     fA = field(A; halowidths=hwA)
@@ -83,7 +114,7 @@ end
     topo = topology(ntuple(_ -> 0, N); comm=comm, periods=ntuple(_ -> true, N))
     nlocal = ntuple(_ -> 6, N)
     g = grid(topo, nlocal)
-    A = fill(Float64(rank), nlocal)
+    A = filled_array(rank, nlocal)
     fA = field(A; halowidths=ntuple(_ -> 1, N))
 
     handle = halo_exchange_start!(g, fA)
@@ -101,22 +132,22 @@ end
     g = grid(topo, nlocal)
 
     # A bare array: gets field's default halowidths (1 in every dimension).
-    A = fill(Float64(rank), nlocal)
+    A = filled_array(rank, nlocal)
     update_halo!(g, A)
     @test check_halo(g, field(A), 1:N, nlocal)
 
     # Mixed call: B stays a bare array (default width), C is pre-wrapped with
     # an explicit, different width — this is the "variable width in one call"
     # case, resolved per-argument rather than by one call-wide default.
-    B = fill(Float64(rank), nlocal)
-    C = fill(Float64(rank), nlocal)
+    B = filled_array(rank, nlocal)
+    C = filled_array(rank, nlocal)
     hwC = ntuple(d -> d == 1 ? 2 : 1, N)
     update_halo!(g, B, field(C; halowidths=hwC))
     @test check_halo(g, field(B), 1:N, nlocal)
     @test check_halo(g, field(C; halowidths=hwC), 1:N, nlocal)
 
     # start!/finish! convenience form matches the update_halo! convenience form.
-    D = fill(Float64(rank), nlocal)
+    D = filled_array(rank, nlocal)
     handle = halo_exchange_start!(g, D)
     halo_exchange_finish!(handle)
     @test check_halo(g, field(D), 1:N, nlocal)

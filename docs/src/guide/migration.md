@@ -1,7 +1,7 @@
 ﻿# Migrating from ImplicitGlobalGrid.jl
 
 HaloArrays uses explicit `Topology` and `Grid` values and per-field halo
-widths. Read [core concepts](./concepts) before converting call sites.
+widths. Read [core concepts](./concepts.md) before converting call sites.
 
 **Check the field layout before changing an exchange call.** Passing a grid
 is sufficient only when the old send/receive ranges match HaloArrays' ranges.
@@ -83,7 +83,7 @@ for completed, sequential exchanges. Independent concurrent exchanges need
 separate topologies with separate communicators; per-grid caches do not
 isolate MPI tags.
 
-See [coordinate helpers](./coordinates) for explicit coordinate APIs.
+See [coordinate helpers](./coordinates.md) for explicit coordinate APIs.
 Verify the old rank stride and location-dependent origin before substituting
 those helpers. Matching function names does not establish matching coordinates.
 

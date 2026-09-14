@@ -20,6 +20,8 @@ for the full design rationale and phased build plan this package follows.
 - [`topology`](@ref), [`grid`](@ref), [`field`](@ref)
 - [`halo_exchange_start!`](@ref), [`halo_exchange_finish!`](@ref), [`update_halo!`](@ref)
 - [`gather!`](@ref)
+- [`global_sum`](@ref)/[`global_max`](@ref)/[`global_min`](@ref)/[`global_norm`](@ref),
+  [`global_reduce`](@ref)/[`global_allreduce`](@ref)
 - Coordinate helpers, per field: [`nglobal`](@ref)/[`nx_g`](@ref)/[`ny_g`](@ref)/[`nz_g`](@ref),
   [`iglobal`](@ref)/[`ix_g`](@ref)/[`iy_g`](@ref)/[`iz_g`](@ref),
   [`coord_g`](@ref)/[`x_g`](@ref)/[`y_g`](@ref)/[`z_g`](@ref)
@@ -36,6 +38,7 @@ include("validation.jl")
 include("backend.jl")
 include("halo_exchange.jl")
 include("gather.jl")
+include("reduce.jl")
 include("coordinates.jl")
 
 end
