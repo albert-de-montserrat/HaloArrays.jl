@@ -78,6 +78,8 @@ end
 
     me, _, nprocs = init_global_grid(
         nx, ny, nz; periodx=0, periody=0, periodz=1, quiet=true)
+    me == 0 && println(
+        "grid: local=($nx, $ny, $nz) global=($(nx_g()), $(ny_g()), $(nz_g())) nprocs=$nprocs")
     dx = lx / (nx_g() - 1)
     dy = ly / (ny_g() - 1)
     dz = lz / (nz_g() - 1)
@@ -109,8 +111,9 @@ end
         # array argument's size (qx and T disagree in every dimension), which
         # silently walks 1 past T's bounds. This is backend-agnostic
         # ParallelStencil behavior, not a Threads-only quirk — the gpu/
-        # sibling likely has the same latent out-of-bounds access, just not
-        # surfaced as an immediate Julia error there.
+        # sibling had the same out-of-bounds access (fixed there too), where
+        # it surfaces as a CUDA BoundsError deep in kernel execution instead
+        # of an immediate Julia error.
         @parallel (1:nx-1, 1:ny-2, 1:nz-2) flux_x!(qx, T, lam, dx)
         @parallel (1:nx-2, 1:ny-1, 1:nz-2) flux_y!(qy, T, lam, dy)
         @parallel (1:nx-2, 1:ny-2, 1:nz-1) flux_z!(qz, T, lam, dz)

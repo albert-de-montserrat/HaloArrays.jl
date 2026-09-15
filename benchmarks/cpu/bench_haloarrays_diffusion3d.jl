@@ -96,6 +96,8 @@ end
     g  = grid(t, (nx, ny, nz); origin_on_vertex=true)
     Tf = field(zeros(Float64, nx, ny, nz); halowidths=(hw, hw, hw))
     T  = Tf.data
+    rank == 0 && println(
+        "grid: local=($nx, $ny, $nz) global=($(nx_g(g, Tf)), $(ny_g(g, Tf)), $(nz_g(g, Tf))) nprocs=$nprocs")
     dx = lx / (nx_g(g, Tf) - 1)
     dy = ly / (ny_g(g, Tf) - 1)
     dz = lz / (nz_g(g, Tf) - 1)
@@ -113,7 +115,7 @@ end
 
     dt = min(dx * dx, dy * dy, dz * dz) * cp_min / lam / 8.1
     owned = (hw+1:nx-hw, hw+1:ny-hw, hw+1:nz-hw)
-    total_energy() = MPI.Allreduce(Float64(sum(Cp[owned...] .* T[owned...])), MPI.SUM, comm)
+    total_energy() = global_sum(g, Float64(sum(Cp[owned...] .* T[owned...])))
     E0 = total_energy()
 
     qx = zeros(Float64, nx - 1, ny - 2, nz - 2)
@@ -126,8 +128,9 @@ end
         # array argument's size (qx and T disagree in every dimension), which
         # silently walks 1 past T's bounds. This is backend-agnostic
         # ParallelStencil behavior, not a Threads-only quirk — the gpu/
-        # sibling likely has the same latent out-of-bounds access, just not
-        # surfaced as an immediate Julia error there.
+        # sibling had the same out-of-bounds access (fixed there too), where
+        # it surfaces as a CUDA BoundsError deep in kernel execution instead
+        # of an immediate Julia error.
         @parallel (1:nx-1, 1:ny-2, 1:nz-2) flux_x!(qx, T, lam, dx)
         @parallel (1:nx-2, 1:ny-1, 1:nz-2) flux_y!(qy, T, lam, dy)
         @parallel (1:nx-2, 1:ny-2, 1:nz-1) flux_z!(qz, T, lam, dz)

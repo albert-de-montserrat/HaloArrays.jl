@@ -24,8 +24,10 @@ fields' halo widths. Override it with `boundary_width=(bx, by)` or
 `boundary_width=(bx, by, bz)`. A larger width moves more work before the
 exchange and leaves less work available for overlap; it is a performance-tuning
 parameter and does not change the numerical result. Every width must be
-positive, match the dimensionality of `ranges`, and be less than half the
-corresponding range length. ParallelStencil's automatic partitioner also
+positive and match the dimensionality of `ranges`. If any range length is at
+most twice its width, the macro instead launches the full kernel, executes the
+boundary updates, synchronizes, and performs a blocking `update_halo!`.
+ParallelStencil's automatic partitioner also
 requires every range to start at `1`.
 
 The boundary statements must update only data outside the inner box and must

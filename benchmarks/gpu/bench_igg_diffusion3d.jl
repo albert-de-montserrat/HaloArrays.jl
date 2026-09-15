@@ -78,6 +78,8 @@ end
 
     me, _, nprocs = init_global_grid(
         nx, ny, nz; periodx=0, periody=0, periodz=1, quiet=true)
+    me == 0 && println(
+        "grid: local=($nx, $ny, $nz) global=($(nx_g()), $(ny_g()), $(nz_g())) nprocs=$nprocs")
     dx = lx / (nx_g() - 1)
     dy = ly / (ny_g() - 1)
     dz = lz / (nz_g() - 1)
@@ -103,9 +105,15 @@ end
     qy = CUDA.zeros(Float64, nx - 2, ny - 1, nz - 2)
     qz = CUDA.zeros(Float64, nx - 2, ny - 2, nz - 1)
     function step!()
-        @parallel flux_x!(qx, T, lam, dx)
-        @parallel flux_y!(qy, T, lam, dy)
-        @parallel flux_z!(qz, T, lam, dz)
+        # Explicit ranges (matching each qx/qy/qz's own, smaller-than-T shape)
+        # are required here: `@parallel kernel(qx, T, ...)` without them infers
+        # the launch size as the elementwise *max* over every array argument's
+        # size (qx and T disagree in every dimension), which walks 1 past
+        # qx/qy/qz's bounds and T's — surfaces on CUDA as a BoundsError deep in
+        # kernel execution. See the CPU sibling for the same fix.
+        @parallel (1:nx-1, 1:ny-2, 1:nz-2) flux_x!(qx, T, lam, dx)
+        @parallel (1:nx-2, 1:ny-1, 1:nz-2) flux_y!(qy, T, lam, dy)
+        @parallel (1:nx-2, 1:ny-2, 1:nz-1) flux_z!(qz, T, lam, dz)
         @parallel (1:nx-2, 1:ny-2, 1:nz-2) update_temperature!(T, Cp, qx, qy, qz, dt, dx, dy, dz)
         @parallel (1:1, 1:ny, 1:nz) noflux_xlo!(T)
         @parallel (nx:nx, 1:ny, 1:nz) noflux_xhi!(T)

@@ -46,6 +46,8 @@ function main()
     dt     = 0.1
 
     me, _, nprocs = init_global_grid(N, N, N; periodx=1, periody=1, periodz=1, quiet=true)
+    me == 0 && println(
+        "grid: local=($N, $N, $N) global=($(nx_g()), $(ny_g()), $(nz_g())) nprocs=$nprocs")
 
     A = fill(Float64(me), N, N, N)
     B = fill(Float64(me) + 0.5, N, N, N)

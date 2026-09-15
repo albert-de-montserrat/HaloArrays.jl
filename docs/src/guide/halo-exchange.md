@@ -70,8 +70,10 @@ width of its fields. This is the smallest naturally inferred safe width. An
 explicit larger value is a tuning parameter: it increases the work completed
 before communication and reduces the inner work available for overlap. It
 does not alter `Field.halowidths`, MPI message sizes, or the computed result.
-For `(16, 2, 2)`, the x range must contain at least 33 points and the y/z
-ranges at least 5; generally every range length must exceed twice its width.
+For `(16, 2, 2)`, overlap requires at least 33 points in the x range and at
+least 5 in the y/z ranges. If any range length is at most twice its width,
+the macro runs the full kernel, applies the boundary updates, synchronizes,
+and performs a blocking `update_halo!`. This fallback applies at any rank count.
 Ranges must start at `1`, matching ParallelStencil's partitioning contract.
 
 The first block statement must be the explicitly ranged computation to split.

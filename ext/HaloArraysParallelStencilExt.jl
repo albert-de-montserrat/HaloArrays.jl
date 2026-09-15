@@ -5,6 +5,13 @@ using ParallelStencil
 
 boundary_width(fields...) = ntuple(d -> maximum(HaloArrays.halowidths(f)[d] for f in fields), ndims(first(fields)))
 
+function can_overlap(widths, ranges)
+    length(widths) == length(ranges) || throw(ArgumentError("boundary_width must match the dimensionality of ranges"))
+    all(w -> w isa Integer && w > 0, widths) || throw(ArgumentError("boundary_width entries must be positive integers"))
+    all(r -> first(r) == 1, ranges) || throw(ArgumentError("ranges must start at 1"))
+    return all(d -> length(ranges[d]) > 2 * widths[d], eachindex(ranges))
+end
+
 function hide_halo_communication_expr(args...)
     block = args[end]
     positional = collect(args[1:end-1])
@@ -16,23 +23,33 @@ function hide_halo_communication_expr(args...)
     launch, boundary_updates = statements[1], statements[2:end]
     launch isa Expr && launch.head == :macrocall && launch.args[1] == Symbol("@parallel") && length(launch.args) == 4 || error("first statement must be `@parallel ranges kernel!(...)`")
     ranges, kernel = launch.args[3:4]
-    width_expr = width === nothing ? :(HaloArraysParallelStencilExt.boundary_width($(fields...))) : width
+    width_expr = width === nothing ? :($(GlobalRef(@__MODULE__, :boundary_width))($(fields...))) : width
     outer, inner, range, handle = gensym.((:outer, :inner, :range, :handle))
+    widths, launch_ranges = gensym.((:widths, :ranges))
     return esc(quote
-        $outer = ParallelStencil.ParallelKernel.get_ranges_outer($width_expr, $ranges)
-        $inner = ParallelStencil.ParallelKernel.get_ranges_inner($width_expr, $ranges)
-        for $range in $outer
-            ParallelStencil.@parallel $range $kernel
-        end
-        $(boundary_updates...)
-        ParallelStencil.@synchronize
-        $handle = HaloArrays.halo_exchange_start!($grid, $(fields...))
-        try
-            for $range in $inner
+        $widths = $width_expr
+        $launch_ranges = $ranges
+        if !$(GlobalRef(@__MODULE__, :can_overlap))($widths, $launch_ranges)
+            ParallelStencil.@parallel $launch_ranges $kernel
+            $(boundary_updates...)
+            ParallelStencil.@synchronize
+            HaloArrays.update_halo!($grid, $(fields...))
+        else
+            $outer = ParallelStencil.ParallelKernel.get_ranges_outer($widths, $launch_ranges)
+            $inner = ParallelStencil.ParallelKernel.get_ranges_inner($widths, $launch_ranges)
+            for $range in $outer
                 ParallelStencil.@parallel $range $kernel
             end
-        finally
-            HaloArrays.halo_exchange_finish!($handle)
+            $(boundary_updates...)
+            ParallelStencil.@synchronize
+            $handle = HaloArrays.halo_exchange_start!($grid, $(fields...))
+            try
+                for $range in $inner
+                    ParallelStencil.@parallel $range $kernel
+                end
+            finally
+                HaloArrays.halo_exchange_finish!($handle)
+            end
         end
     end)
 end

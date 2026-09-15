@@ -95,6 +95,8 @@ end
     g  = grid(t, (nx, ny, nz); origin_on_vertex=true)
     Tf = field(CUDA.zeros(Float64, nx, ny, nz); halowidths=(hw, hw, hw))
     T  = Tf.data
+    rank == 0 && println(
+        "grid: local=($nx, $ny, $nz) global=($(nx_g(g, Tf)), $(ny_g(g, Tf)), $(nz_g(g, Tf))) nprocs=$nprocs")
     dx = lx / (nx_g(g, Tf) - 1)
     dy = ly / (ny_g(g, Tf) - 1)
     dz = lz / (nz_g(g, Tf) - 1)
@@ -112,16 +114,22 @@ end
 
     dt = min(dx * dx, dy * dy, dz * dz) * cp_min / lam / 8.1
     owned = (hw+1:nx-hw, hw+1:ny-hw, hw+1:nz-hw)
-    total_energy() = MPI.Allreduce(Float64(sum(Cp[owned...] .* T[owned...])), MPI.SUM, comm)
+    total_energy() = global_sum(g, Float64(sum(Cp[owned...] .* T[owned...])))
     E0 = total_energy()
 
     qx = CUDA.zeros(Float64, nx - 1, ny - 2, nz - 2)
     qy = CUDA.zeros(Float64, nx - 2, ny - 1, nz - 2)
     qz = CUDA.zeros(Float64, nx - 2, ny - 2, nz - 1)
     function step!()
-        @parallel flux_x!(qx, T, lam, dx)
-        @parallel flux_y!(qy, T, lam, dy)
-        @parallel flux_z!(qz, T, lam, dz)
+        # Explicit ranges (matching each qx/qy/qz's own, smaller-than-T shape)
+        # are required here: `@parallel kernel(qx, T, ...)` without them infers
+        # the launch size as the elementwise *max* over every array argument's
+        # size (qx and T disagree in every dimension), which walks 1 past
+        # qx/qy/qz's bounds and T's — surfaces on CUDA as a BoundsError deep in
+        # kernel execution. See the CPU sibling for the same fix.
+        @parallel (1:nx-1, 1:ny-2, 1:nz-2) flux_x!(qx, T, lam, dx)
+        @parallel (1:nx-2, 1:ny-1, 1:nz-2) flux_y!(qy, T, lam, dy)
+        @parallel (1:nx-2, 1:ny-2, 1:nz-1) flux_z!(qz, T, lam, dz)
         @parallel (1:nx-2, 1:ny-2, 1:nz-2) update_temperature!(
             T, Cp, qx, qy, qz, dt, dx, dy, dz)
         apply_vertical_noflux!(T, nx, ny, nz)

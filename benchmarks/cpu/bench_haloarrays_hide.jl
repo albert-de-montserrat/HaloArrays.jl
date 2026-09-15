@@ -78,6 +78,8 @@ function main()
     fA = field(A; halowidths=(1, 1, 1))
     fB = field(B; halowidths=(1, 1, 1))
     Anew = similar(A)
+    rank == 0 && println(
+        "grid: local=($N, $N, $N) global=($(nx_g(g, fA)), $(ny_g(g, fA)), $(nz_g(g, fA))) nprocs=$nprocs")
 
     # Correctness gate, once, before any timing: overlapped split must match
     # the blocking reference exactly.

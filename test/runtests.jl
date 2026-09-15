@@ -33,7 +33,8 @@ const GPU_NPROCS_MATRIX = [1, 2]
 # test_hdf5_io.jl follows the same optional weakdep pattern with a stronger
 # environment gate, because the HDF5 package is a weak dependency of the core
 # package and therefore must be made visible through the test/Project.toml.
-const TEST_PROJECT_CPU_FILES = ["test_cellarrays.jl", "test_hdf5_io.jl"]
+# test_parallelstencil.jl likewise needs the optional ParallelStencil dependency.
+const TEST_PROJECT_CPU_FILES = ["test_cellarrays.jl", "test_hdf5_io.jl", "test_parallelstencil.jl"]
 
 testdir = @__DIR__
 istest(f) = endswith(f, ".jl") && startswith(basename(f), "test_")

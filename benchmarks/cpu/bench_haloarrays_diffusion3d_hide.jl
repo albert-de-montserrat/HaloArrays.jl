@@ -98,6 +98,8 @@ end
     g  = grid(t, (nx, ny, nz); origin_on_vertex=true)
     Tf = field(zeros(Float64, nx, ny, nz); halowidths=(hw, hw, hw))
     T  = Tf.data
+    rank == 0 && println(
+        "grid: local=($nx, $ny, $nz) global=($(nx_g(g, Tf)), $(ny_g(g, Tf)), $(nz_g(g, Tf))) nprocs=$nprocs")
     dx = lx / (nx_g(g, Tf) - 1)
     dy = ly / (ny_g(g, Tf) - 1)
     dz = lz / (nz_g(g, Tf) - 1)
@@ -115,7 +117,7 @@ end
 
     dt = min(dx * dx, dy * dy, dz * dz) * cp_min / lam / 8.1
     owned = (hw+1:nx-hw, hw+1:ny-hw, hw+1:nz-hw)
-    total_energy() = MPI.Allreduce(Float64(sum(Cp[owned...] .* T[owned...])), MPI.SUM, comm)
+    total_energy() = global_sum(g, Float64(sum(Cp[owned...] .* T[owned...])))
     E0 = total_energy()
 
     qx = zeros(Float64, nx - 1, ny - 2, nz - 2)
