@@ -25,6 +25,7 @@ for the full design rationale and phased build plan this package follows.
 - Coordinate helpers, per field: [`nglobal`](@ref)/[`nx_g`](@ref)/[`ny_g`](@ref)/[`nz_g`](@ref),
   [`iglobal`](@ref)/[`ix_g`](@ref)/[`iy_g`](@ref)/[`iz_g`](@ref),
   [`coord_g`](@ref)/[`x_g`](@ref)/[`y_g`](@ref)/[`z_g`](@ref)
+- [`save_hdf5`](@ref)/[`load_hdf5!`](@ref) (optional, requires `using HDF5`)
 """
 module HaloArrays
 
@@ -40,5 +41,6 @@ include("halo_exchange.jl")
 include("gather.jl")
 include("reduce.jl")
 include("coordinates.jl")
+include("HDF5IO.jl")
 
 end

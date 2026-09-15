@@ -30,7 +30,10 @@ const GPU_NPROCS_MATRIX = [1, 2]
 # requirement or functional()-style gate, so it runs the same full
 # NPROCS_MATRIX as an ordinary CPU test file — just launched with
 # `--project=test` instead of `--project=<pkg root>`.
-const TEST_PROJECT_CPU_FILES = ["test_cellarrays.jl"]
+# test_hdf5_io.jl follows the same optional weakdep pattern with a stronger
+# environment gate, because the HDF5 package is a weak dependency of the core
+# package and therefore must be made visible through the test/Project.toml.
+const TEST_PROJECT_CPU_FILES = ["test_cellarrays.jl", "test_hdf5_io.jl"]
 
 testdir = @__DIR__
 istest(f) = endswith(f, ".jl") && startswith(basename(f), "test_")

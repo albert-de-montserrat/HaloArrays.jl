@@ -29,4 +29,9 @@ The examples use CPU arrays. `CuArray`/`ROCArray` fields work as drop-in
 replacements wherever a `Field` wraps an array (see `ext/HaloArraysCUDAExt.jl`
 and `ext/HaloArraysAMDGPUExt.jl`); the CUDA extension is tested against real
 hardware, while the AMDGPU extension is a structurally identical port that has
-not been run against real ROCm hardware yet.
+not been run against real ROCm hardware yet. `save_hdf5`/`load_hdf5!` (see
+`ext/HaloArraysHDF5Ext.jl` and the [MPI/HDF5 file I/O guide](./guide/hdf5-io.md))
+write and read `Field` data to/from a shared HDF5 file once `HDF5` is loaded;
+no parallel-HDF5 build is assumed, so ranks take turns writing rather than
+writing simultaneously — see the guide for what that does and doesn't change
+for the caller.

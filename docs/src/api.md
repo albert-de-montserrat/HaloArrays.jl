@@ -59,6 +59,18 @@ gather!
 
 The [gather guide](./guide/gather.md) covers the standard full-dimensional case.
 
+## MPI/HDF5 file I/O
+
+```@docs
+save_hdf5
+load_hdf5!
+```
+
+Optional: these are stub functions until `using HDF5` loads
+`HaloArraysHDF5Ext`. See the [MPI/HDF5 file I/O guide](./guide/hdf5-io.md) for
+the on-disk layout, the interior/halo storage convention, and multi-field
+usage.
+
 ## Global reductions
 
 ```@docs

@@ -20,6 +20,7 @@ makedocs(;
             "Topologies, grids, and fields" => "guide/concepts.md",
             "Halo exchange" => "guide/halo-exchange.md",
             "Gathering arrays" => "guide/gather.md",
+            "MPI/HDF5 file I/O" => "guide/hdf5-io.md",
             "Global reductions" => "guide/reductions.md",
             "Coordinate helpers" => "guide/coordinates.md",
             "Migrating from ImplicitGlobalGrid.jl" => "guide/migration.md",
