@@ -88,6 +88,9 @@ end
     comm   = MPI.COMM_WORLD
     rank   = MPI.Comm_rank(comm)
     nprocs = MPI.Comm_size(comm)
+    let (base, ext) = splitext(output)
+        output = "$(base)_n$(nprocs)$(ext)"
+    end
 
     lam, cp_min = 1.0, 1.0
     lx, ly, lz  = 10.0, 10.0, 10.0

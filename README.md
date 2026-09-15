@@ -112,11 +112,14 @@ Extensions activate when their corresponding packages are loaded:
 | CellArrays | Halo exchange for `CellArray` data, including a tested CUDA path |
 | ParallelStencil | Outer/inner computation splitting with `@hide_halo_communication` |
 | HDF5 | Saving and loading distributed fields in a shared HDF5 file |
+| WriteVTK | Saving distributed fields as parallel ParaView (pvtk) files |
 
 GPU packing and unpacking use device buffers, with host staging around MPI
 transport. The application selects each rank's device; CUDA/ROCm-aware MPI
 transport is outside the current implementation. HDF5 I/O uses ranks in turn
-and does not require a parallel-HDF5 build.
+and does not require a parallel-HDF5 build. Parallel VTK I/O is write-only
+(no `load_pvtk!`); every rank writes its own independent file, so unlike
+HDF5 it needs no shared-file write coordination.
 
 See the [public API](docs/src/api.md) for signatures and the
 [examples directory](examples/) for runnable applications.

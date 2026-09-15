@@ -75,6 +75,18 @@ Optional: these are stub functions until `using HDF5` loads
 the on-disk layout, the interior/halo storage convention, and multi-field
 usage.
 
+## Parallel ParaView (pvtk) I/O
+
+```@docs
+save_pvtk
+```
+
+Optional: this is a stub function until `using WriteVTK` loads
+`HaloArraysWriteVTKExt`. See the
+[Parallel ParaView (pvtk) I/O guide](./guide/pvtk-io.md) for the on-disk
+layout, the halo-inclusive overlap convention (the opposite of the HDF5
+extension's), and worked single-/multi-field examples.
+
 ## Global reductions
 
 ```@docs

@@ -2,7 +2,7 @@
 
 julia_version = "1.13.0"
 manifest_format = "2.1"
-project_hash = "9707b613a1671d91f6766b058ca4c68981552eeb"
+project_hash = "91ba4bb994890124cca0a99f2dae283b7cd11b2f"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -47,7 +47,7 @@ uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
 version = "1.11.0"
 
 [[deps.HaloArrays]]
-deps = ["MPI"]
+deps = ["MPI", "MPIPreferences"]
 path = "."
 uuid = "8e9f1a5b-1c2d-4a3e-9f6b-2d7c8e4a9b1f"
 version = "0.1.0"
@@ -56,11 +56,15 @@ version = "0.1.0"
     HaloArraysAMDGPUExt = "AMDGPU"
     HaloArraysCUDAExt = "CUDA"
     HaloArraysCellArraysExt = "CellArrays"
+    HaloArraysHDF5Ext = "HDF5"
+    HaloArraysParallelStencilExt = "ParallelStencil"
 
     [deps.HaloArrays.weakdeps]
     AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
     CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
     CellArrays = "d35fcfd7-7af4-4c67-b1aa-d78070614af4"
+    HDF5 = "f67ccb44-e63f-5c2f-98bd-6dc0ccc4ba2f"
+    ParallelStencil = "94395366-693c-11ea-3b26-d9b7aac5d958"
 
 [[deps.Hwloc_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "XML2_jll", "Xorg_libpciaccess_jll"]

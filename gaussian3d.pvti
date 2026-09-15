@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<VTKFile type="PImageData" version="1.0" byte_order="LittleEndian">
+  <PImageData GhostLevel="0" WholeExtent="0 65 0 65 0 65" Origin="-32.5 -32.5 -32.5" Spacing="1.0 1.0 1.0">
+    <Piece Source="gaussian3d\gaussian3d_1.vti" Extent="0 33 0 33 0 33"/>
+    <Piece Source="gaussian3d\gaussian3d_2.vti" Extent="0 33 0 33 32 65"/>
+    <Piece Source="gaussian3d\gaussian3d_3.vti" Extent="0 33 32 65 0 33"/>
+    <Piece Source="gaussian3d\gaussian3d_4.vti" Extent="0 33 32 65 32 65"/>
+    <Piece Source="gaussian3d\gaussian3d_5.vti" Extent="32 65 0 33 0 33"/>
+    <Piece Source="gaussian3d\gaussian3d_6.vti" Extent="32 65 0 33 32 65"/>
+    <Piece Source="gaussian3d\gaussian3d_7.vti" Extent="32 65 32 65 0 33"/>
+    <Piece Source="gaussian3d\gaussian3d_8.vti" Extent="32 65 32 65 32 65"/>
+    <PPointData>
+      <PDataArray type="Float64" Name="gaussian" NumberOfComponents="1"/>
+    </PPointData>
+  </PImageData>
+</VTKFile>

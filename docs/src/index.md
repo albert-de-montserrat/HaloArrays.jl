@@ -34,4 +34,9 @@ not been run against real ROCm hardware yet. `save_hdf5`/`load_hdf5!` (see
 write and read `Field` data to/from a shared HDF5 file once `HDF5` is loaded;
 no parallel-HDF5 build is assumed, so ranks take turns writing rather than
 writing simultaneously — see the guide for what that does and doesn't change
-for the caller.
+for the caller. `save_pvtk` (see `ext/HaloArraysWriteVTKExt.jl` and the
+[Parallel ParaView (pvtk) I/O guide](./guide/pvtk-io.md)) writes `Field` data
+to ParaView's parallel VTK XML image-data format once `WriteVTK` is loaded;
+unlike `save_hdf5`, every rank writes its own independent file (no shared-file
+write coordination needed), but halo cells are written rather than trimmed,
+and periodic topologies are not yet supported.

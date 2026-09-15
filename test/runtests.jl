@@ -34,7 +34,10 @@ const GPU_NPROCS_MATRIX = [1, 2]
 # environment gate, because the HDF5 package is a weak dependency of the core
 # package and therefore must be made visible through the test/Project.toml.
 # test_parallelstencil.jl likewise needs the optional ParallelStencil dependency.
-const TEST_PROJECT_CPU_FILES = ["test_cellarrays.jl", "test_hdf5_io.jl", "test_parallelstencil.jl"]
+# test_pvtk_io.jl follows the same pattern for the WriteVTK weakdep (plus
+# ReadVTK, a test-only dependency used to verify round-trip correctness —
+# never a package-level weakdep, since save_pvtk has no load_pvtk! counterpart).
+const TEST_PROJECT_CPU_FILES = ["test_cellarrays.jl", "test_hdf5_io.jl", "test_parallelstencil.jl", "test_pvtk_io.jl"]
 
 testdir = @__DIR__
 istest(f) = endswith(f, ".jl") && startswith(basename(f), "test_")

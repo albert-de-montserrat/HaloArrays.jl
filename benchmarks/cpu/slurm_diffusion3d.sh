@@ -42,8 +42,13 @@ NTASKS_MATRIX=(1 2 4)
 N=128
 NITER=150
 
-OUT=results_diffusion3d_cpu.jld2
-rm -f "$OUT"
+# Each bench_*_diffusion3d*.jl worker appends its own rank count to this base
+# name (see save_result/output in metrics_common.jl et al.), so this run
+# produces one file per NTASKS_MATRIX entry: results_diffusion3d_cpu_n1.jld2,
+# _n2.jld2, _n4.jld2 — not one shared file — since ranks running at different
+# times/allocations shouldn't be racing to append into the same file.
+OUT_BASE=results_diffusion3d_cpu.jld2
+rm -f "${OUT_BASE%.jld2}"_n*.jld2
 
 for n in "${NTASKS_MATRIX[@]}"; do
   for script in \
@@ -52,7 +57,7 @@ for n in "${NTASKS_MATRIX[@]}"; do
     bench_igg_diffusion3d.jl \
     bench_igg_diffusion3d_hide.jl; do
     echo "-- $script  ranks=$n  threads/rank=$JULIA_NUM_THREADS  local_N=${N}^3 --" >&2
-    if ! srun -n "$n" --uenv "$UENV" --view=juliaup julia --project=. --startup-file=no -t "$JULIA_NUM_THREADS" "$script" "$N" "$NITER" "$OUT" 2>err.log; then
+    if ! srun -n "$n" --uenv "$UENV" --view=juliaup julia --project=. --startup-file=no -t "$JULIA_NUM_THREADS" "$script" "$N" "$NITER" "$OUT_BASE" 2>err.log; then
       echo "   FAILED (see err.log):" >&2
       tail -40 err.log >&2
       continue
@@ -61,4 +66,4 @@ for n in "${NTASKS_MATRIX[@]}"; do
 done
 
 rm -f err.log
-echo "Done. Wrote $OUT" >&2
+echo "Done. Wrote ${OUT_BASE%.jld2}_n<ranks>.jld2 for ranks in: ${NTASKS_MATRIX[*]}" >&2

@@ -5,9 +5,10 @@
 # this after copying results_*_cpu.jld2 back from the cluster, e.g.:
 #   julia --project=benchmarks/cpu benchmarks/cpu/visualize.jl
 #
-# ARGS: zero or more JLD2 paths; defaults to
-# results_diffusion3d_cpu.jld2 and results_hide_cpu.jld2 in this directory
-# (whichever exist).
+# ARGS: zero or more JLD2 paths; defaults to every results_diffusion3d_cpu_n*.jld2
+# (one per rank count in slurm_diffusion3d.sh's NTASKS_MATRIX, since each
+# bench_*_diffusion3d*.jl run now names its own output after its rank count)
+# plus results_hide_cpu.jld2, in this directory (whichever exist).
 import Pkg
 Pkg.activate(joinpath(@__DIR__); io=devnull)
 using CairoMakie
@@ -94,9 +95,12 @@ function write_summary(all_results::Dict{String,Vector{<:NamedTuple}}, outpath::
 end
 
 function main()
-    paths = isempty(ARGS) ?
-        [joinpath(@__DIR__, "results_diffusion3d_cpu.jld2"), joinpath(@__DIR__, "results_hide_cpu.jld2")] :
+    paths = if isempty(ARGS)
+        diffusion3d = filter(f -> startswith(f, "results_diffusion3d_cpu_n") && endswith(f, ".jld2"), readdir(@__DIR__))
+        vcat(joinpath.(@__DIR__, sort(diffusion3d)), joinpath(@__DIR__, "results_hide_cpu.jld2"))
+    else
         collect(ARGS)
+    end
     plotdir = joinpath(@__DIR__, "plots")
     mkpath(plotdir)
 

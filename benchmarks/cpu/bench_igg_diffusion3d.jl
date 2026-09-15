@@ -80,6 +80,9 @@ end
         nx, ny, nz; periodx=0, periody=0, periodz=1, quiet=true)
     me == 0 && println(
         "grid: local=($nx, $ny, $nz) global=($(nx_g()), $(ny_g()), $(nz_g())) nprocs=$nprocs")
+    let (base, ext) = splitext(output)
+        output = "$(base)_n$(nprocs)$(ext)"
+    end
     dx = lx / (nx_g() - 1)
     dy = ly / (ny_g() - 1)
     dz = lz / (nz_g() - 1)

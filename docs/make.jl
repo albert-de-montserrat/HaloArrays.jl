@@ -22,6 +22,7 @@ makedocs(;
             "Hiding communication and boundary widths" => "guide/hide-communication.md",
             "Gathering arrays" => "guide/gather.md",
             "MPI/HDF5 file I/O" => "guide/hdf5-io.md",
+            "Parallel ParaView (pvtk) I/O" => "guide/pvtk-io.md",
             "Global reductions" => "guide/reductions.md",
             "Coordinate helpers" => "guide/coordinates.md",
             "Migrating from ImplicitGlobalGrid.jl" => "guide/migration.md",
