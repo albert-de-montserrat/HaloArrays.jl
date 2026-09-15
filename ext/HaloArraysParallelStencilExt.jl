@@ -26,6 +26,7 @@ function hide_halo_communication_expr(args...)
     width_expr = width === nothing ? :($(GlobalRef(@__MODULE__, :boundary_width))($(fields...))) : width
     outer, inner, range, handle = gensym.((:outer, :inner, :range, :handle))
     widths, launch_ranges = gensym.((:widths, :ranges))
+    partition_ranges = gensym(:partition_ranges)
     return esc(quote
         $widths = $width_expr
         $launch_ranges = $ranges
@@ -35,8 +36,9 @@ function hide_halo_communication_expr(args...)
             ParallelStencil.@synchronize
             HaloArrays.update_halo!($grid, $(fields...))
         else
-            $outer = ParallelStencil.ParallelKernel.get_ranges_outer($widths, $launch_ranges)
-            $inner = ParallelStencil.ParallelKernel.get_ranges_inner($widths, $launch_ranges)
+            $partition_ranges = ParallelStencil.ParallelKernel.promote_ranges($launch_ranges)
+            $outer = ParallelStencil.ParallelKernel.get_ranges_outer($widths, $partition_ranges)
+            $inner = ParallelStencil.ParallelKernel.get_ranges_inner($widths, $partition_ranges)
             for $range in $outer
                 ParallelStencil.@parallel $range $kernel
             end

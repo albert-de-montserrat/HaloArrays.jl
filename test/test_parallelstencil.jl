@@ -9,6 +9,50 @@ using ParallelStencil
     return nothing
 end
 
+# ParallelStencil keeps initialization per module, so exercise its 2D backend
+# separately from the 3D kernels above.
+module TwoDimensionalTests
+using Test, MPI, HaloArrays, ParallelStencil
+@init_parallel_stencil(Threads, Float64, 2)
+
+@parallel_indices (i, j) function increment_owned!(A)
+    A[i + 1, j + 1] += i + 10j
+    return nothing
+end
+
+function run_tests()
+    @testset "2D ParallelStencil ranges" begin
+        t = topology((0, 0); periods=(true, true))
+        for (n, b) in ((6, 1), (6, 2), (32, 2), (32, 16))
+            g = grid(t, (n, n))
+            f = field(fill(Float64(t.rank), n, n); halowidths=(1, 1))
+            reference = field(copy(f.data); halowidths=(1, 1))
+            A, B = f.data, reference.data
+            ranges = (1:n-2, 1:n-2)
+            for _ in 1:2
+                @parallel ranges increment_owned!(B)
+                @synchronize
+                update_halo!(g, reference)
+                @hide_halo_communication g f boundary_width=(b, b) begin
+                    @parallel ranges increment_owned!(A)
+                end
+                @synchronize
+                @test A == B
+                @test !g.excache.pending
+            end
+            @parallel ranges increment_owned!(B)
+            @synchronize
+            update_halo!(g, reference)
+            @hide_halo_communication g f begin
+                @parallel ranges increment_owned!(A)
+            end
+            @synchronize
+            @test A == B
+        end
+    end
+end
+end
+
 MPI.Init()
 @testset "ParallelStencil overlap and blocking fallback" begin
     t = topology((0, 0, 0); periods=(true, true, true))
@@ -49,4 +93,5 @@ MPI.Init()
         @test A == B
     end
 end
+TwoDimensionalTests.run_tests()
 MPI.Finalize()

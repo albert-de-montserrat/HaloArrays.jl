@@ -46,6 +46,8 @@ ease. `nz_g` requires a 3D grid.
 nx_g(grid::Grid, field::Field) = nglobal(grid, field, 1)
 ny_g(grid::Grid, field::Field) = nglobal(grid, field, 2)
 nz_g(grid::Grid{3}, field::Field{T,3}) where {T} = nglobal(grid, field, 3)
+@doc (@doc nx_g) ny_g
+@doc (@doc nx_g) nz_g
 
 """
     iglobal(grid::Grid{N}, field::Field{T,N}, dim::Integer, i::Integer;
@@ -99,6 +101,8 @@ iy_g(i::Integer, grid::Grid, field::Field; wrap_periodic::Bool = true) =
     iglobal(grid, field, 2, i; wrap_periodic)
 iz_g(i::Integer, grid::Grid{3}, field::Field{T,3}; wrap_periodic::Bool = true) where {T} =
     iglobal(grid, field, 3, i; wrap_periodic)
+@doc (@doc ix_g) iy_g
+@doc (@doc ix_g) iz_g
 
 """
     coord_g(grid::Grid{N}, field::Field{T,N}, dim::Integer, i::Integer, dx::Real) :: Float64
@@ -141,3 +145,5 @@ migration ease. `z_g` requires a 3D grid.
 x_g(i::Integer, dx::Real, grid::Grid, field::Field) = coord_g(grid, field, 1, i, dx)
 y_g(i::Integer, dx::Real, grid::Grid, field::Field) = coord_g(grid, field, 2, i, dx)
 z_g(i::Integer, dx::Real, grid::Grid{3}, field::Field{T,3}) where {T} = coord_g(grid, field, 3, i, dx)
+@doc (@doc x_g) y_g
+@doc (@doc x_g) z_g

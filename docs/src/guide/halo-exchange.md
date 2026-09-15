@@ -36,7 +36,8 @@ handle; you do compute in between; `halo_exchange_finish!` completes the
 handle. `update_halo!` is just `start!` immediately followed by `finish!`, and
 is what you want unless you specifically intend to overlap something. A
 ParallelStencil convenience macro for the common outer/inner stencil split is
-documented below.
+introduced below. See [Hiding communication and boundary widths](./hide-communication.md)
+for diagrams, runnable examples, sizing rules, and tuning guidance.
 
 ### ParallelStencil convenience macro
 
@@ -44,7 +45,7 @@ Loading ParallelStencil activates the optional `@hide_halo_communication`
 extension:
 
 ```julia
-@hide_halo_communication g Tf boundary_width=(16, 2, 2) begin
+@hide_halo_communication g Tf boundary_width=(2, 2, 2) begin
     @parallel (1:nx-2, 1:ny-2, 1:nz-2) update_temperature!(
         T, Cp, qx, qy, qz, dt, dx, dy, dz)
     @parallel (1:1, 1:ny, 1:nz) noflux_xlo!(T)

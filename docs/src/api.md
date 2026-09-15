@@ -1,5 +1,9 @@
 # Public API
 
+```@docs
+HaloArrays
+```
+
 This reference is generated from the docstrings in `src/`, so it always
 matches the current source. Examples use CPU arrays. Constructor functions,
 `update_halo!`/`halo_exchange_start!`/`halo_exchange_finish!`, `gather!`, the
@@ -42,8 +46,8 @@ ExchangeHandle
 ```
 
 See [halo exchange](./guide/halo-exchange.md) for ordering and overlap
-constraints, and [hiding communication](./guide/halo-exchange.md#parallelstencil-convenience-macro)
-for the full ParallelStencil schedule and safety rules.
+constraints, and [hiding communication and boundary widths](./guide/hide-communication.md)
+for the ParallelStencil schedule, sizing examples, sketches, and safety rules.
 
 ## Communication buffers
 

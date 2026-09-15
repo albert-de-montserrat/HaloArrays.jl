@@ -19,6 +19,7 @@ makedocs(;
             "Getting started" => "guide/getting-started.md",
             "Topologies, grids, and fields" => "guide/concepts.md",
             "Halo exchange" => "guide/halo-exchange.md",
+            "Hiding communication and boundary widths" => "guide/hide-communication.md",
             "Gathering arrays" => "guide/gather.md",
             "MPI/HDF5 file I/O" => "guide/hdf5-io.md",
             "Global reductions" => "guide/reductions.md",

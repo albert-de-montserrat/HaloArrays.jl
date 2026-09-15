@@ -62,14 +62,27 @@ using LiveServer
 LiveServer.servedocs(buildfoldername = "build/1")
 ```
 
-The quickstart, halo-exchange overlap, and coordinate-helper pages embed
-`examples/quickstart.jl`, `examples/hide_communication.jl`, and
+The quickstart, halo-exchange overlap, ParallelStencil boundary-width, and
+coordinate-helper pages embed `examples/quickstart.jl`,
+`examples/hide_communication.jl`, `examples/parallelstencil_overlap.jl`, and
 `examples/diffusion3D.jl` directly via `@eval` blocks that read the file at
 build time, so edits to their executable source also update the page. The API
 reference (`docs/src/api.md`) is built entirely from `@docs` blocks pulling
 docstrings out of `src/`, so it cannot drift from the implementation the way a
 hand-written signature list can — update the docstring, not the page, when a
 public signature changes.
+
+## Internal validation and backend hooks
+
+The following implementation hooks are documented for contributors. They are
+not exported public API; array backends override the dispatch hooks through
+package extensions.
+
+```@docs
+HaloArrays.check_fields
+HaloArrays.is_cuarray
+HaloArrays.pack_target
+```
 
 ## Deployment
 
