@@ -67,15 +67,15 @@ end
 # Single dispatch point shared by update_halo!/halo_exchange_start! below,
 # picking the batched (B=0) or per-component (any other B, including the
 # T<:Number rejection) path.
-_cellarray_start!(grid::Grid{N}, A::CellArray{T,N,0}, hw::NTuple{N,Int}, dims::Tuple) where {T<:ArrayCell,N} =
-    _halo_exchange_start!(grid, (cellarray_field_batched(A, hw),), dims)
-_cellarray_start!(grid::Grid{N}, A::CellArray{T,N,B}, hw::NTuple{N,Int}, dims::Tuple) where {T<:ArrayCell,N,B} =
-    _halo_exchange_start!(grid, cellarray_fields_percomponent(A, hw), dims)
-_cellarray_start!(grid::Grid{N}, A::CellArray{T,N}, hw::NTuple{N,Int}, dims::Tuple) where {T<:Number,N} =
-    _halo_exchange_start!(grid, cellarray_fields_percomponent(A, hw), dims)  # always errors
+_cellarray_start!(grid::Grid{N}, A::CellArray{T,N,0}, hw::NTuple{N,Int}, dims::Tuple, region::Symbol) where {T<:ArrayCell,N} =
+    _halo_exchange_start!(grid, (cellarray_field_batched(A, hw),), dims, region)
+_cellarray_start!(grid::Grid{N}, A::CellArray{T,N,B}, hw::NTuple{N,Int}, dims::Tuple, region::Symbol) where {T<:ArrayCell,N,B} =
+    _halo_exchange_start!(grid, cellarray_fields_percomponent(A, hw), dims, region)
+_cellarray_start!(grid::Grid{N}, A::CellArray{T,N}, hw::NTuple{N,Int}, dims::Tuple, region::Symbol) where {T<:Number,N} =
+    _halo_exchange_start!(grid, cellarray_fields_percomponent(A, hw), dims, region)  # always errors
 
 """
-    update_halo!(grid::Grid, A::CellArray; halowidths=ntuple(_->1,N), dims=ntuple(identity,N))
+    update_halo!(grid::Grid, A::CellArray; halowidths=ntuple(_->1,N), dims=ntuple(identity,N), region=:full)
 
 Update the halo of every cell component of `A` on `grid`, in one exchange.
 `A`'s cell type must be multi-component (`SArray`/`FieldArray`, i.e.
@@ -98,17 +98,20 @@ A `CellArray` cannot currently be mixed inline with plain `Field`/`Array`
 arguments in one call (unlike HaloArrays' `Union{Field,AbstractArray}...`
 convenience form) — call this and any other fields' `update_halo!` calls
 separately.
+
+`region=:faces` exchanges only faces in the grid dimensions, retaining all
+batched components and leaving halo edges/corners unchanged.
 """
 function HaloArrays.update_halo!(grid::Grid{N}, A::CellArray{T,N};
         halowidths::NTuple{N,Integer} = ntuple(_ -> 1, N),
-        dims::Tuple = ntuple(identity, N)) where {T,N}
-    handle = _cellarray_start!(grid, A, Int.(halowidths), dims)
+        dims::Tuple = ntuple(identity, N), region::Symbol = :full) where {T,N}
+    handle = _cellarray_start!(grid, A, Int.(halowidths), dims, region)
     halo_exchange_finish!(handle)
     return nothing
 end
 
 """
-    halo_exchange_start!(grid::Grid, A::CellArray; halowidths=ntuple(_->1,N), dims=ntuple(identity,N)) :: ExchangeHandle
+    halo_exchange_start!(grid::Grid, A::CellArray; halowidths=ntuple(_->1,N), dims=ntuple(identity,N), region=:full) :: ExchangeHandle
 
 Two-phase counterpart to [`update_halo!`](@ref) for a `CellArray`: starts the
 exchange and returns a handle for [`halo_exchange_finish!`](@ref) to
@@ -117,6 +120,6 @@ restrictions and the `B=0`-batched/`B=1`-per-component split.
 """
 function HaloArrays.halo_exchange_start!(grid::Grid{N}, A::CellArray{T,N};
         halowidths::NTuple{N,Integer} = ntuple(_ -> 1, N),
-        dims::Tuple = ntuple(identity, N)) where {T,N}
-    return _cellarray_start!(grid, A, Int.(halowidths), dims)
+        dims::Tuple = ntuple(identity, N), region::Symbol = :full) where {T,N}
+    return _cellarray_start!(grid, A, Int.(halowidths), dims, region)
 end

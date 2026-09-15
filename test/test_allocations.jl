@@ -47,8 +47,22 @@ function run_allocation_tests()
     end
     bytes_per_pair = total_pair / niter
 
+    for _ in 1:5
+        update_halo!(g, fA, fB; region=:faces)
+    end
+    total_faces = @allocated for _ in 1:niter
+        update_halo!(g, fA, fB; region=:faces)
+    end
+    total_face_pair = @allocated for _ in 1:niter
+        h = halo_exchange_start!(g, fA, fB; region=:faces)
+        halo_exchange_finish!(h)
+    end
+    bytes_per_faces = total_faces / niter
+    bytes_per_face_pair = total_face_pair / niter
+
     if rank == 0
         println("nprocs=$nprocs  update_halo!: $bytes_per_update B/call  start!+finish!: $bytes_per_pair B/call")
+        println("nprocs=$nprocs  faces update!: $bytes_per_faces B/call  faces start!+finish!: $bytes_per_face_pair B/call")
     end
 
     @testset "steady-state allocation (nprocs=$nprocs)" begin
@@ -57,6 +71,8 @@ function run_allocation_tests()
             # own code should be exactly allocation-free.
             @test bytes_per_update == 0
             @test bytes_per_pair == 0
+            @test bytes_per_faces == 0
+            @test bytes_per_face_pair == 0
         else
             # Real Irecv!/Isend/Wait transport is in play; MPI.jl's own
             # per-call overhead isn't this package's to eliminate. Bound
@@ -65,6 +81,8 @@ function run_allocation_tests()
             # before the phase 8 fixes (see REDESIGN_PLAN.md).
             @test bytes_per_update < 2000
             @test bytes_per_pair < 2000
+            @test bytes_per_faces < 2000
+            @test bytes_per_face_pair < 2000
         end
     end
 

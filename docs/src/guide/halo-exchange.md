@@ -18,6 +18,55 @@ of valid dimension indices to exchange a subset or change the order. Use matchin
 field order, compatible types and sizes, and the same dimension order on peers.
 An exchange restricted to one dimension does not refresh the other halos.
 
+## Face halos for axial stencils
+
+```julia
+update_halo!(g, temperature; region=:faces)
+handle = halo_exchange_start!(g, temperature; region=:faces)
+try
+    # Compute into separate output storage in the inner box. Every requested
+    # face remains pending, so stencil reads must avoid all of those faces.
+finally
+    halo_exchange_finish!(handle)
+end
+```
+
+The default `region=:full` includes transverse halos and propagates edges and
+corners sequentially. Choose `region=:faces` when the stencil reads only axial
+neighbors, such as a five-point or seven-point Laplacian. A face slab spans the
+owned interior in every other grid dimension. Cells in halo edges/corners,
+unrequested faces, and physical boundaries without neighbors remain unchanged.
+Extra trailing field dimensions, including batched CellArray components, are
+exchanged in full.
+
+Face mode packs and posts every requested dimension before returning from
+`start!`, and defers all unpacking until `finish!`. With halo width one and a
+radius-one stencil, the inner box `3:nlocal[d]-2` in every grid dimension is
+safe to compute while the exchange is pending. Compute the remaining owned
+boundary slabs after finishing, and keep input fields unchanged throughout.
+For larger stencil radii, shrink the inner box accordingly.
+
+Peers must use matching regions, dimensions, field order, types, halo widths,
+and compatible slab sizes. Face mode rejects repeated dimensions and requires
+at least the halo width of owned cells in each requested dimension:
+`3*halowidths[d] <= size(data,d)`. Diagonal stencils and mixed derivatives that
+read edges or corners require `region=:full`. Both modes share the same
+one-pending-exchange-per-grid guard. More pending dimensions permit broader
+overlap, but do not guarantee that MPI progresses during computation.
+
+The following example checks the face-overlapped stencil against full exchange:
+
+```@eval
+using Markdown
+Markdown.parse("```julia\n" * read(joinpath(@__DIR__, "..", "..", "..", "examples", "face_exchange.jl"), String) * "\n```")
+```
+
+Run it from the package project:
+
+```sh
+julia --project=. examples/face_exchange.jl
+```
+
 ## Overlapping independent computation ("hiding" communication)
 
 ```julia
@@ -42,7 +91,8 @@ for diagrams, runnable examples, sizing rules, and tuning guidance.
 ### ParallelStencil convenience macro
 
 Loading ParallelStencil activates the optional `@hide_halo_communication`
-extension:
+extension. The macro uses full exchange; use the split API above to request
+face exchange:
 
 ```julia
 @hide_halo_communication g Tf boundary_width=(2, 2, 2) begin
@@ -85,19 +135,18 @@ every rank is valid when halo exchange follows: received neighbor data
 overwrites provisional values at internal interfaces, while nonperiodic domain
 walls retain the imposed values.
 
-### Why only the last dimension overlaps
+### Why only the last dimension overlaps in full exchange
 
-Halo exchange is inherently sequential across dimensions: dimension 2's
+Full halo exchange is sequential across dimensions: dimension 2's
 packing has to read what dimension 1's unpacking just wrote, so that a corner
 cell ends up holding the correct diagonal neighbor's value. `start!` therefore
 performs every dimension in `dims` **except the last** fully synchronously —
 pack, send/recv, wait, unpack — before it ever returns control to you. Only
 the *last* dimension in `dims` is actually left outstanding; that is the one
 piece of work `finish!` has left to do, and the only part your inserted
-compute genuinely overlaps with. This is a deliberate, permanent scope limit,
-not a TODO: a fundamentally different corner-communication algorithm that
-would let every dimension overlap was considered and rejected in favor of
-documenting the limit honestly.
+compute overlaps with. This is the scope of the default `region=:full`
+algorithm. The optional `region=:faces` excludes edges and corners and can
+therefore leave every requested dimension pending.
 
 Concretely, right after `start!(g, f; dims=(1, 2))` returns:
 

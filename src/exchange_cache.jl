@@ -4,7 +4,9 @@ export ExchangeCache
     ExchangeCache
 
 Per-`Grid`-owned scratch state for halo exchange: raw send/recv byte buffers
-(one pair per field position, per call) and the MPI request array. This is a
+and the MPI request array. Full exchange reuses one slot per field position;
+face exchange reserves separate slots per dimension and field position so
+all requested dimensions can remain pending together. This is a
 mutable struct whose fields are reassigned as buffers grow — never a
 module-level `let`-captured variable — precisely so that two live `Grid`s
 never share or clobber each other's buffers/requests, and so that growing a

@@ -50,6 +50,36 @@ Fields may have different element types or halo widths. Use distinct backing
 arrays: duplicate array objects are rejected, but overlapping views are not
 comprehensively checked for aliasing.
 
+## Building a grid from a global domain size
+
+`grid`'s second positional argument means the *local* array size (the
+`(34, 34)` above) unless `global_size=true`, in which case it instead means
+the *global* domain size, and `grid` derives the per-rank local size for you:
+
+```julia
+t = topology((0, 0))
+g = grid(t, (256, 256); global_size=true)          # halowidths default to 1
+A = zeros(g.nlocal)
+f = field(A)                                        # must also use halowidths=1
+nx_g(g, f), ny_g(g, f)                              # (256, 256), regardless of nprocs
+```
+
+Since `Grid` itself stores no halo-width information (that stays `Field`'s
+responsibility, as above), pass `halowidths` explicitly if the field(s) you'll
+build on this grid don't use the default of `1` in every dimension:
+
+```julia
+g = grid(t, (256, 256); global_size=true, halowidths=(2, 2))
+f = field(zeros(g.nlocal); halowidths=(2, 2))       # same halowidths used above
+```
+
+A field built with *different* halowidths than what `global_size=true` used
+still works, but — per [`nglobal`](../api.md#coordinate-helpers)'s own
+per-field accounting — sees a different (still well-defined) global size,
+exactly as it would on a manually-sized grid. `grid` raises a clear error,
+naming the offending dimension, if the requested global size does not divide
+evenly across the topology once the halo width is accounted for.
+
 ## Multiple grids
 
 A grid owns its cache, so sequential use of multiple grids needs no global reset.

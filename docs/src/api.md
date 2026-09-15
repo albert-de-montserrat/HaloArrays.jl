@@ -25,6 +25,7 @@ has_neighbor
 ```@docs
 Grid
 grid
+nlocal_from_global
 ```
 
 ## Field

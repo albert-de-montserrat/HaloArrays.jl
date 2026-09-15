@@ -12,7 +12,7 @@ const NO_MPI_FILES = ["test_field.jl"]
 # test_threaded_pack.jl); run separately from the rest of the suite with
 # -t 4, over a small nprocs matrix (it isn't testing topology variety, just
 # that the threaded and sequential pack/unpack paths agree).
-const THREADED_FILES = ["test_threaded_pack.jl"]
+const THREADED_FILES = ["test_threaded_pack.jl", "test_face_exchange_threaded.jl"]
 # CUDA/AMDGPU are weakdeps of the package itself (Project.toml), not real
 # dependencies, so a subprocess launched with `--project=<pkg root>` (like
 # every other file below) cannot `using CUDA`/`using AMDGPU` at all. test/
@@ -23,7 +23,8 @@ const THREADED_FILES = ["test_threaded_pack.jl"]
 # over a small nprocs matrix, same reasoning as THREADED_FILES: this project
 # has at most one physical GPU to test against, so higher rank counts add
 # process-oversubscription time, not correctness coverage.
-const GPU_FILES = ["test_cuda.jl", "test_amdgpu.jl", "test_cellarrays_cuda.jl", "test_allocations_cuda.jl"]
+const GPU_FILES = ["test_cuda.jl", "test_amdgpu.jl", "test_cellarrays_cuda.jl", "test_allocations_cuda.jl",
+    "test_face_exchange_cuda.jl", "test_face_exchange_amdgpu.jl", "test_face_exchange_cellarrays_cuda.jl"]
 const GPU_NPROCS_MATRIX = [1, 2]
 # test_cellarrays.jl needs test/'s CellArrays dependency for the same reason
 # (CellArrays is only a weakdep of the package root), but has no GPU-hardware
@@ -37,7 +38,8 @@ const GPU_NPROCS_MATRIX = [1, 2]
 # test_pvtk_io.jl follows the same pattern for the WriteVTK weakdep (plus
 # ReadVTK, a test-only dependency used to verify round-trip correctness —
 # never a package-level weakdep, since save_pvtk has no load_pvtk! counterpart).
-const TEST_PROJECT_CPU_FILES = ["test_cellarrays.jl", "test_hdf5_io.jl", "test_parallelstencil.jl", "test_pvtk_io.jl"]
+const TEST_PROJECT_CPU_FILES = ["test_cellarrays.jl", "test_hdf5_io.jl", "test_parallelstencil.jl", "test_pvtk_io.jl",
+    "test_face_exchange_cellarrays.jl"]
 
 testdir = @__DIR__
 istest(f) = endswith(f, ".jl") && startswith(basename(f), "test_")

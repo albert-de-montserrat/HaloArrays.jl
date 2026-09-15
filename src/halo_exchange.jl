@@ -49,19 +49,24 @@ end
 Returned by [`halo_exchange_start!`](@ref); pass it to [`halo_exchange_finish!`](@ref)
 to complete the exchange. Opaque — its fields are internal.
 
-Because halo exchange is inherently sequential across Cartesian dimensions
+With the default `region=:full`, halo exchange is sequential across Cartesian dimensions
 (dimension 2's packing must read what dimension 1's unpacking wrote, to get
 corners right), `halo_exchange_start!` performs every dimension but the last
 fully synchronously, and only the *last* dimension is actually left
 outstanding in the handle — this is the honestly-documented scope limit of the
-communication/compute overlap this package provides.
+communication/compute overlap for full exchange. `region=:faces` excludes
+transverse halo cells and leaves every requested dimension outstanding.
 """
-struct ExchangeHandle{N,F<:Tuple}
+struct ExchangeHandle{N,F<:Tuple,D<:Tuple}
     grid::Grid{N}
     fields::F
-    dim::Int          # 0 => nothing outstanding (finish! is then a no-op)
+    dim::Int          # final full-exchange dimension; faces use dims instead
     self_periodic::Bool
+    dims::D          # empty for full exchange; pending dimensions for faces
 end
+
+ExchangeHandle{N,F}(grid, fields, dim, self_periodic) where {N,F} =
+    ExchangeHandle{N,F,Tuple{}}(grid, fields, dim, self_periodic, ())
 
 # Number of elements in the halo slab of field `f` in dimension `dim` (all other
 # dimensions at full size).
@@ -390,7 +395,7 @@ check_dims(::Val{N}, ::Tuple{}) where {N} = error("dims must contain at least on
 end
 
 """
-    halo_exchange_start!(grid::Grid, fields::Field...; dims::Tuple=ntuple(identity, ndims(grid))) :: ExchangeHandle
+    halo_exchange_start!(grid::Grid, fields::Field...; dims::Tuple=ntuple(identity, ndims(grid)), region::Symbol=:full) :: ExchangeHandle
 
 Start a halo exchange for `fields` on `grid`, over dimensions `dims` (an
 `NTuple` of `Int`s, processed in the given order). Every dimension except the
@@ -400,11 +405,31 @@ single-rank-periodic dimension, unpack) is left outstanding. Only one exchange
 may be in flight per `Grid` at a time — starting a second before finishing the
 first raises an error; multiple *different* grids remain fully concurrent.
 
+With `region=:faces`, exchange only face halos, excluding transverse halo
+cells in other grid dimensions. Every requested dimension remains pending
+until finish; edges and corners stay unchanged. Use this for axial stencils
+that do not read diagonal halos. Extra trailing field dimensions (such as
+batched components) retain their full extent. Repeated dimensions are rejected
+in face mode. Peers must use the same region, dimensions, and field order.
+Each requested dimension must have at least its halo width of owned cells
+(`3*halowidths[d] <= size(data,d)`).
+Keep input fields unchanged while computing into separate output storage.
+
 Call [`halo_exchange_finish!`](@ref) on the returned handle to complete it.
 [`update_halo!`](@ref) is a convenience wrapper that does both.
 """
-function halo_exchange_start!(grid::Grid{N}, fields::Field...; dims::Tuple = ntuple(identity, N)) where {N}
-    return _halo_exchange_start!(grid, fields, dims)
+function halo_exchange_start!(grid::Grid{N}, fields::Field...;
+        dims::Tuple = ntuple(identity, N), region::Symbol = :full) where {N}
+    return _halo_exchange_start!(grid, fields, dims, region)
+end
+
+# Branch on the Symbol in a tuple-positional wrapper instead of constructing
+# Val(region) dynamically in the keyword sorter: the latter loses field
+# specialization and allocates even when the default region is constant.
+@inline function _halo_exchange_start!(grid, fields::Tuple, dims::Tuple, region::Symbol)
+    region === :full && return _halo_exchange_start!(grid, fields, dims)
+    region === :faces && return _halo_exchange_start!(grid, fields, dims, Val(:faces))
+    error("region must be :full or :faces; got region=$region.")
 end
 
 # `halo_exchange_start!` itself is deliberately a thin wrapper forwarding into
@@ -438,10 +463,10 @@ end
     halo_exchange_finish!(handle::ExchangeHandle) :: Nothing
 
 Complete a halo exchange started by [`halo_exchange_start!`](@ref): waits for
-the last dimension's outstanding communication and unpacks it into the
-fields' arrays.
+outstanding communication and unpacks it into the fields' arrays. Full exchange
+finishes the last dimension; face exchange finishes all requested dimensions.
 """
-function halo_exchange_finish!(handle::ExchangeHandle{N,F}) where {N,F}
+function halo_exchange_finish!(handle::ExchangeHandle{N,F,Tuple{}}) where {N,F}
     if handle.dim != 0
         if handle.self_periodic
             unpack_dim!(handle.grid, handle.fields, handle.dim)
@@ -455,18 +480,25 @@ function halo_exchange_finish!(handle::ExchangeHandle{N,F}) where {N,F}
 end
 
 """
-    update_halo!(grid::Grid, fields::Field...; dims::Tuple=ntuple(identity, ndims(grid))) :: Nothing
+    update_halo!(grid::Grid, fields::Field...; dims::Tuple=ntuple(identity, ndims(grid)), region::Symbol=:full) :: Nothing
 
 Update the halo of `fields` on `grid`: `halo_exchange_start!` immediately
 followed by `halo_exchange_finish!`. Prefer this unless you specifically want
-to overlap the last dimension's communication with other work.
+to overlap communication with other work. `region=:full` propagates edges and
+corners sequentially; `region=:faces` fills only faces and permits all requested
+dimensions to remain pending in the split API. See [`halo_exchange_start!`](@ref).
 """
-function update_halo!(grid::Grid{N}, fields::Field...; dims::Tuple = ntuple(identity, N)) where {N}
+function update_halo!(grid::Grid{N}, fields::Field...;
+        dims::Tuple = ntuple(identity, N), region::Symbol = :full) where {N}
+    return _update_halo!(grid, fields, dims, region)
+end
+
+function _update_halo!(grid, fields::Tuple, dims::Tuple, region::Symbol)
     # Calls `_halo_exchange_start!` (the `Tuple`-positional inner method)
     # directly rather than `halo_exchange_start!(grid, fields...; dims=dims)`,
     # for the same reason `halo_exchange_start!` itself is a thin wrapper —
     # see the comment there.
-    handle = _halo_exchange_start!(grid, fields, dims)
+    handle = _halo_exchange_start!(grid, fields, dims, region)
     halo_exchange_finish!(handle)
     return nothing
 end
@@ -498,8 +530,8 @@ to_fields(::Tuple{}) = ()
 to_fields(args::Tuple) = (as_field(args[1]), to_fields(Base.tail(args))...)
 
 """
-    halo_exchange_start!(grid::Grid, args::Union{Field,AbstractArray}...; dims=...) :: ExchangeHandle
-    update_halo!(grid::Grid, args::Union{Field,AbstractArray}...; dims=...) :: Nothing
+    halo_exchange_start!(grid::Grid, args::Union{Field,AbstractArray}...; dims=..., region=:full) :: ExchangeHandle
+    update_halo!(grid::Grid, args::Union{Field,AbstractArray}...; dims=..., region=:full) :: Nothing
 
 Convenience forms of [`halo_exchange_start!`](@ref)/[`update_halo!`](@ref) that
 accept bare arrays as well as `Field`s, in any mix, in the same call: a bare
@@ -512,12 +544,12 @@ without every array needing to be pre-wrapped:
 update_halo!(grid, A, B, field(C; halowidths=(2, 2)))  # A, B default; C custom
 ```
 """
-function halo_exchange_start!(grid::Grid{N}, args::Union{Field,AbstractArray}...; dims::Tuple = ntuple(identity, N)) where {N}
-    return _halo_exchange_start!(grid, to_fields(args), dims)
+function halo_exchange_start!(grid::Grid{N}, args::Union{Field,AbstractArray}...;
+        dims::Tuple = ntuple(identity, N), region::Symbol = :full) where {N}
+    return _halo_exchange_start!(grid, to_fields(args), dims, region)
 end
 
-function update_halo!(grid::Grid{N}, args::Union{Field,AbstractArray}...; dims::Tuple = ntuple(identity, N)) where {N}
-    handle = _halo_exchange_start!(grid, to_fields(args), dims)
-    halo_exchange_finish!(handle)
-    return nothing
+function update_halo!(grid::Grid{N}, args::Union{Field,AbstractArray}...;
+        dims::Tuple = ntuple(identity, N), region::Symbol = :full) where {N}
+    return _update_halo!(grid, to_fields(args), dims, region)
 end
