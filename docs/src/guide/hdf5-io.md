@@ -58,6 +58,54 @@ load_hdf5!(g, (u2, v2), "state.h5"; names=("u", "v"))
 a save/load pair that both omit it agree on the dataset labels without
 having to repeat them. Field names must be unique within a file/group.
 
+## Restart with a different number of ranks
+
+Pass `repartition=true` to read a checkpoint using a different rank count or
+Cartesian process-grid shape. Each reader rank loads its own portion directly
+from the saved global dataset. Existing schema 0.2.0 files work unchanged.
+
+For example, save a periodic 64-by-64 domain using four ranks:
+
+```julia
+t = topology((2, 2); periods=(true, true))
+g = grid(t, (34, 34))  # 32 owned cells plus two halo cells per dimension
+f = field(rand(34, 34))
+save_hdf5(g, f, "state.h5")
+```
+
+In a separate run with eight ranks, load the same file:
+
+```julia
+t = topology((4, 2); periods=(true, true))
+g = grid(t, (18, 34))
+f = field(zeros(18, 34))
+load_hdf5!(g, f, "state.h5"; repartition=true)
+update_halo!(g, f)
+```
+
+Construct the destination grid and fields before loading. For each dimension,
+the required local size is
+`(saved_nglobal - 2*hw*!periodic) ÷ topology_dims + 2*hw`; the division must
+be exact. Halo widths, element types, global shapes, and periodicity must
+match the saved fields. Nonperiodic physical boundary strips remain part of
+the saved global domain. Only uniform per-rank decompositions are supported;
+multiple fields must all be compatible with the destination grid's local size.
+
+`repartition=true` also works with field tuples, `names`, and `group`.
+Neighbor halos remain untouched during loading: call `update_halo!` before
+using them. HDF5 I/O still requires CPU arrays.
+
+The runnable [`checkpoint_restart.jl`](https://github.com/albert-de-montserrat/HaloArrays.jl/blob/master/examples/checkpoint_restart.jl)
+example saves a position-dependent field and checks every cell after restart.
+From this repository, with the test project instantiated and an MPI launcher
+matching MPI.jl, run:
+
+```sh
+mpiexec -n 4 julia --project=test examples/checkpoint_restart.jl save state.h5
+mpiexec -n 2 julia --project=test examples/checkpoint_restart.jl load state.h5
+mpiexec -n 8 julia --project=test examples/checkpoint_restart.jl load state.h5
+```
+
 ## Validation
 
 `load_hdf5!` checks a dataset's saved metadata (schema version, topology
@@ -65,7 +113,11 @@ dimensions, `nlocal`, `nglobal`, halo widths, element type) against the
 `Grid`/`Field` requesting the load *before* touching any payload, and raises
 a plain `error(...)` naming the saved and requested values on the first
 mismatch — most commonly a different process-grid shape or `nlocal` than
-the file was written with. `save_hdf5` similarly refuses to reuse an
+the file was written with. With `repartition=true`, topology dimensions and
+local size may differ; global shape, halo widths, element type, and saved
+periodicity are still checked, as is the dataset shape. Periodicity is recovered
+from the saved global and local geometry, including for existing files.
+`save_hdf5` similarly refuses to reuse an
 existing dataset name in an existing file (append a distinct `name`/`names`,
 use a distinct `group`, or start from a fresh file with `mode="w"`, the
 default).

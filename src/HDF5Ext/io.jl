@@ -66,12 +66,14 @@ function write_field_dataset!(parent, group::AbstractString, grid::HaloArrays.Gr
 end
 
 function read_field_dataset!(parent, group::AbstractString, grid::HaloArrays.Grid{N}, field::HaloArrays.Field{T,N},
-                              field_name::AbstractString) where {T,N}
+                              field_name::AbstractString; repartition::Bool = false) where {T,N}
     haskey(parent, field_name) || throw(HDF5IOError(
         "no dataset named \"$field_name\" in group \"$group\"."))
     dset = parent[field_name]
     meta = metadata_from_dataset(dset)
-    validate_metadata!(meta, grid, field)
+    validate_metadata!(meta, grid, field; repartition = repartition)
+    size(dset) == meta.nglobal || error(
+        "Dataset shape mismatch for field \"$field_name\": metadata has $(meta.nglobal), dataset has $(size(dset)).")
     local_ranges, global_ranges = local_and_global_ranges(grid, field)
     field.data[local_ranges...] = dset[global_ranges...]
     return nothing
@@ -127,13 +129,14 @@ end
 
 function HaloArrays.load_hdf5!(grid::HaloArrays.Grid{N}, fields::NTuple{M,HaloArrays.Field}, path::AbstractString;
                                 names::NTuple{M,AbstractString} = default_field_names(M),
-                                group::AbstractString = HDF5_IO_DEFAULT_GROUP) where {N,M}
+                                group::AbstractString = HDF5_IO_DEFAULT_GROUP,
+                                repartition::Bool = false) where {N,M}
     check_field_batch(grid, fields, names)
 
     h5open(path, "r") do h5
         parent = resolve_group(h5, group, false)
         for i in 1:M
-            read_field_dataset!(parent, group, grid, fields[i], names[i])
+            read_field_dataset!(parent, group, grid, fields[i], names[i]; repartition = repartition)
         end
     end
     return fields

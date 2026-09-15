@@ -185,6 +185,85 @@ end
     cleanup!(path)
 end
 
+@testset "different-rank restart (N=$N, periods=$periods, counts=$counts)" for N in (2, 3),
+    periods in (ntuple(_ -> true, N), ntuple(_ -> false, N), ntuple(d -> isodd(d), N)),
+    counts in unique(((1, nprocs), (nprocs, 1), (nprocs, nprocs),
+                      (min(4, nprocs), min(2, nprocs)), (min(4, nprocs), nprocs)))
+
+    path = joinpath(tempdir(), "haloarrays_restart_N$(N)_n$(nprocs).h5")
+    cleanup!(path)
+    hw = ntuple(d -> d == 1 ? 2 : 1, N)
+    # Fixed global domain, divisible by every rank count in the test matrix.
+    core = 16
+    writer_count, reader_count = counts
+    writer_comm = MPI.Comm_split(comm, rank < writer_count ? 0 : nothing, rank)
+    if rank < writer_count
+        dims = ntuple(d -> d == 1 ? writer_count : 1, N)
+        t = topology(dims; comm = writer_comm, periods = periods)
+        nl = ntuple(d -> core ÷ dims[d] + 2 * hw[d], N)
+        g = grid(t, nl)
+        fields = (field(zeros(Float64, nl); halowidths = hw),
+                  field(zeros(Int64, nl); halowidths = hw))
+        foreach(f -> fill_globally!(g, f), fields)
+        save_hdf5(g, fields, path; names = ("u", "v"), group = "state")
+    end
+    MPI.Barrier(comm)
+
+    reader_comm = MPI.Comm_split(comm, rank < reader_count ? 0 : nothing, rank)
+    if rank < reader_count
+        # Change process-grid shape even when the rank count stays the same.
+        dims = ntuple(d -> d == 2 ? reader_count : 1, N)
+        t = topology(dims; comm = reader_comm, periods = periods)
+        nl = ntuple(d -> core ÷ dims[d] + 2 * hw[d], N)
+        g = grid(t, nl)
+        fields = (field(fill(-1.0, nl); halowidths = hw),
+                  field(fill(Int64(-1), nl); halowidths = hw))
+        if nprocs > 1
+            @test_throws ErrorException load_hdf5!(g, fields, path;
+                                                  names = ("u", "v"), group = "state")
+        end
+        @test load_hdf5!(g, fields, path; names = ("u", "v"), group = "state",
+                         repartition = true) === fields
+        for f in fields
+            owned, _ = ext.local_and_global_ranges(g, f)
+            for ci in CartesianIndices(f.data)
+                expected = all(d -> ci[d] in owned[d], 1:N) ? global_fill_value(g, f, ci) : -1
+                @test f.data[ci] == expected
+            end
+        end
+        update_halo!(g, fields...)
+        for f in fields, ci in CartesianIndices(f.data)
+            @test f.data[ci] == global_fill_value(g, f, ci)
+        end
+
+        # Global-size equality alone cannot detect changing boundary conventions.
+        changed_periods = ntuple(d -> !periods[d], N)
+        global_shape = ntuple(d -> core + 2 * hw[d] * !periods[d], N)
+        if all(d -> (global_shape[d] - 2 * hw[d] * !changed_periods[d]) % dims[d] == 0, 1:N)
+            bad_t = topology(dims; comm = reader_comm, periods = changed_periods)
+            bad_nl = ntuple(d -> (global_shape[d] - 2 * hw[d] * !changed_periods[d]) ÷ dims[d] + 2 * hw[d], N)
+            bad_g = grid(bad_t, bad_nl)
+            bad_f = field(fill(-1.0, bad_nl); halowidths = hw)
+            @test_throws ErrorException load_hdf5!(bad_g, bad_f, path; name = "u",
+                                                  group = "state", repartition = true)
+            @test all(==(-1.0), bad_f.data)
+        end
+        bad_f = field(zeros(Float32, nl); halowidths = hw)
+        @test_throws ErrorException load_hdf5!(g, bad_f, path; name = "u",
+                                              group = "state", repartition = true)
+        bad_f = field(zeros(nl); halowidths = ntuple(_ -> 1, N))
+        @test_throws ErrorException load_hdf5!(g, bad_f, path; name = "u",
+                                              group = "state", repartition = true)
+        bad_g = grid(t, ntuple(d -> nl[d] + 1, N))
+        bad_f = field(zeros(bad_g.nlocal); halowidths = hw)
+        @test_throws ErrorException load_hdf5!(bad_g, bad_f, path; name = "u",
+                                              group = "state", repartition = true)
+        single = field(zeros(nl); halowidths = hw)
+        @test load_hdf5!(g, single, path; name = "u", group = "state", repartition = true) === single
+    end
+    cleanup!(path)
+end
+
 MPI.Barrier(comm)
 rank == 0 && println("test_hdf5_io.jl: all tests passed on $nprocs ranks.")
 MPI.Finalize()

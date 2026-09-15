@@ -29,13 +29,21 @@ save_hdf5(::Grid, ::Union{Field,Tuple}, ::AbstractString; kwargs...) =
     error("save_hdf5 $HDF5EXT_INSTALL_MSG")
 
 """
-    load_hdf5!(grid::Grid, field::Field, path; name="field", group="/")
-    load_hdf5!(grid::Grid, fields::NTuple{M,Field}, path; names, group="/")
+    load_hdf5!(grid::Grid, field::Field, path; name="field", group="/", repartition=false)
+    load_hdf5!(grid::Grid, fields::NTuple{M,Field}, path; names, group="/", repartition=false)
 
 Read a file written by [`save_hdf5`](@ref) back into the given `Field`(s),
 mutating their arrays in place. Halo cells that have a real neighbor are
 *not* restored (they were never saved) — call [`update_halo!`](@ref)
 afterward to repopulate them.
+
+Set `repartition=true` to restart with a different Cartesian process shape,
+rank count, or local array size. Construct the destination grid and fields
+first: each field must retain its saved global shape, halo widths, element
+type, and periodicity. Only uniform per-rank decompositions are supported.
+Each rank reads its owned hyperslab directly from the global dataset;
+neighbor halos remain untouched until `update_halo!`. The default retains
+strict checks of the saved topology dimensions and local size.
 
 This is a stub method, resolved the same way as [`save_hdf5`](@ref) once
 `using HDF5` loads `HaloArraysHDF5Ext`; see its docstring and the "MPI/HDF5

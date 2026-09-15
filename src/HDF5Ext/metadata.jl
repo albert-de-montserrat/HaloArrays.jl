@@ -64,20 +64,23 @@ function metadata_from_grid(grid::HaloArrays.Grid{N}, field::HaloArrays.Field{T,
 end
 
 """
-    validate_metadata!(meta::HDF5Metadata, grid::Grid{N}, field::Field{T,N})
+    validate_metadata!(meta::HDF5Metadata, grid::Grid{N}, field::Field{T,N}; repartition=false)
 
 Check a dataset's saved metadata against the `Grid`/`Field` pair requesting
 the load, before any payload is touched. Raises a plain `error(...)`
 naming the saved and requested values for the first mismatch found.
+With `repartition=true`, allow different topology dimensions and local sizes,
+while requiring the same global shape, halo widths, type, and periodicity.
 """
-function validate_metadata!(meta::HDF5Metadata, grid::HaloArrays.Grid{N}, field::HaloArrays.Field{T,N}) where {T,N}
+function validate_metadata!(meta::HDF5Metadata, grid::HaloArrays.Grid{N}, field::HaloArrays.Field{T,N};
+                            repartition::Bool = false) where {T,N}
     meta.schema_version == HDF5_IO_SCHEMA_VERSION || error(
         "HDF5 schema mismatch for field \"$(meta.field_name)\": file has " *
         "$(meta.schema_version), this extension expects $(HDF5_IO_SCHEMA_VERSION).")
-    Tuple(meta.topology_dims) == Tuple(grid.topology.dims) || error(
+    (repartition || Tuple(meta.topology_dims) == Tuple(grid.topology.dims)) || error(
         "topology_dims mismatch for field \"$(meta.field_name)\": file has " *
         "$(meta.topology_dims), grid has $(grid.topology.dims).")
-    Tuple(meta.nlocal) == Tuple(grid.nlocal) || error(
+    (repartition || Tuple(meta.nlocal) == Tuple(grid.nlocal)) || error(
         "nlocal mismatch for field \"$(meta.field_name)\": file has $(meta.nlocal), " *
         "grid has $(grid.nlocal).")
     Tuple(meta.halowidths) == Tuple(field.halowidths) || error(
@@ -90,6 +93,32 @@ function validate_metadata!(meta::HDF5Metadata, grid::HaloArrays.Grid{N}, field:
     meta.dtype_name == string(T) || error(
         "dtype mismatch for field \"$(meta.field_name)\": file has \"$(meta.dtype_name)\", " *
         "field eltype is $T.")
+    if repartition
+        # Schema 0.2.0 already encodes periodicity unambiguously: only
+        # nonperiodic dimensions retain the two physical boundary strips.
+        # Infer it from the saved geometry so existing files remain usable.
+        all(values -> length(values) == N,
+            (meta.topology_dims, meta.nlocal, meta.nglobal, meta.halowidths)) ||
+            error("HDF5 dimensionality mismatch for field \"$(meta.field_name)\".")
+        saved_periods = ntuple(N) do d
+            hw = meta.halowidths[d]
+            dims = meta.topology_dims[d]
+            nl = meta.nlocal[d]
+            dims >= 1 && hw >= 1 && nl >= 2 * hw ||
+                error("Invalid saved geometry for field \"$(meta.field_name)\", dimension $d.")
+            core = dims * (nl - 2 * hw)
+            if meta.nglobal[d] == core
+                true
+            elseif meta.nglobal[d] == core + 2 * hw
+                false
+            else
+                error("Inconsistent saved geometry for field \"$(meta.field_name)\", dimension $d.")
+            end
+        end
+        saved_periods == grid.topology.periods || error(
+            "periods mismatch for field \"$(meta.field_name)\": file implies " *
+            "$(saved_periods), grid has $(grid.topology.periods).")
+    end
     return nothing
 end
 
