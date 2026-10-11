@@ -58,6 +58,9 @@ points in every non-periodic dimension (periodic topologies are rejected
 before this is ever called — see `check_pvtk_batch`).
 """
 function local_and_global_extents(grid::HaloArrays.Grid{N}, field::HaloArrays.Field{T,N}) where {T,N}
+    field.overlaps == 2 .* field.halowidths || throw(PVTKIOError(
+        "save_pvtk only supports fields with the default overlaps (2*halowidths); " *
+        "got overlaps=$(field.overlaps), halowidths=$(field.halowidths)."))
     local_range = ntuple(d -> 1:grid.nlocal[d], N)
     global_extent = ntuple(N) do d
         lo = HaloArrays.iglobal(grid, field, d, 1; wrap_periodic = false)

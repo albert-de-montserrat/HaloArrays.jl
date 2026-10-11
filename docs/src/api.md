@@ -17,6 +17,7 @@ exported — no qualification is needed for any of them.
 ```@docs
 Topology
 topology
+subtopology
 has_neighbor
 ```
 
@@ -34,6 +35,7 @@ nlocal_from_global
 Field
 field
 halowidths
+overlaps
 ```
 
 ## Halo exchange

@@ -18,6 +18,24 @@ of valid dimension indices to exchange a subset or change the order. Use matchin
 field order, compatible types and sizes, and the same dimension order on peers.
 An exchange restricted to one dimension does not refresh the other halos.
 
+## Overlaps wider than two halos
+
+By default neighboring ranks share `2*halowidths[d]` lines. Pass `overlaps=`
+to `field` to share more, for staggered or padded arrays:
+
+```julia
+g = grid(t, (9, 8))
+f = field(zeros(9, 8); halowidths=(1, 1), overlaps=(3, 2))
+update_halo!(g, f)
+```
+
+The halo stays `halowidths[d]` wide, but the strip sent to a neighbor is lines
+`overlaps[d]-halowidths[d]+1:overlaps[d]` (low side) and
+`n-overlaps[d]+1:n-overlaps[d]+halowidths[d]` (high side), where `n` is the
+local size, instead of the lines next to the halo. `overlaps[d]` must satisfy
+`2*halowidths[d] <= overlaps[d] <= size(A,d)`. Coordinate helpers and
+`region=:faces` honor it; `save_hdf5`, `load_hdf5!` and `save_pvtk` reject it.
+
 ## Face halos for axial stencils
 
 ```julia
