@@ -495,12 +495,20 @@ function update_halo!(grid::Grid{N}, fields::Field...;
 end
 
 function _update_halo!(grid, fields::Tuple, dims::Tuple, region::Symbol)
-    # Calls `_halo_exchange_start!` (the `Tuple`-positional inner method)
-    # directly rather than `halo_exchange_start!(grid, fields...; dims=dims)`,
-    # for the same reason `halo_exchange_start!` itself is a thin wrapper —
-    # see the comment there.
-    handle = _halo_exchange_start!(grid, fields, dims, region)
-    halo_exchange_finish!(handle)
+    # Calls the `Tuple`-positional inner methods directly rather than
+    # `halo_exchange_start!(grid, fields...; dims=dims)`, for the same reason
+    # `halo_exchange_start!` itself is a thin wrapper — see the comment there.
+    # Branch on `region` here and finish the handle inside each branch. The
+    # Symbol-dispatching `_halo_exchange_start!` returns a `Union` of the full-
+    # and faces-handle types, which the compiler may box when it is not inlined
+    # into the caller; keeping each handle concretely typed avoids that.
+    if region === :full
+        halo_exchange_finish!(_halo_exchange_start!(grid, fields, dims))
+    elseif region === :faces
+        halo_exchange_finish!(_halo_exchange_start!(grid, fields, dims, Val(:faces)))
+    else
+        error("region must be :full or :faces; got region=$region.")
+    end
     return nothing
 end
 
