@@ -1,4 +1,4 @@
-export topology, has_neighbor, Topology
+export topology, subtopology, has_neighbor, Topology
 
 """
     Topology{N}
@@ -61,6 +61,30 @@ function topology(dims::NTuple{N,Integer};
     neighbors = ntuple(d -> Int.(MPI.Cart_shift(comm_cart, d - 1, disp)), N)
 
     return Topology{N}(comm_cart, newdims, periods, rank, coords, neighbors)
+end
+
+"""
+    subtopology(t::Topology{N}, keep::NTuple{N,Bool}; disp=1) :: Topology{M}
+
+Topology of the sub-grids of `t` obtained by keeping only the dimensions with
+`keep[d] == true` (`M = count(keep)`, which must be 2 or 3). Ranks that differ
+only in the dropped coordinates are in different sub-topologies, each with its
+own communicator, so `t` can be used to exchange lower-dimensional arrays (e.g. a
+2D surface on a 3D decomposition) without touching the dropped dimensions.
+
+Collective over `t.comm`.
+"""
+function subtopology(t::Topology{N}, keep::NTuple{N,Bool}; disp::Integer = 1) where {N}
+    M = count(keep)
+    M in (2, 3) || error("subtopology must keep 2 or 3 dimensions; got keep=$keep.")
+    comm_sub = MPI.Cart_sub(t.comm, collect(keep))
+    kept = findall(keep)
+    rank = MPI.Comm_rank(comm_sub)
+    neighbors = ntuple(d -> Int.(MPI.Cart_shift(comm_sub, d - 1, disp)), M)
+    return Topology{M}(
+        comm_sub, ntuple(i -> t.dims[kept[i]], M), ntuple(i -> t.periods[kept[i]], M),
+        rank, ntuple(i -> t.coords[kept[i]], M), neighbors,
+    )
 end
 
 """

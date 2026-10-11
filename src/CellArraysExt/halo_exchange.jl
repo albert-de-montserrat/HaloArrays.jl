@@ -31,10 +31,10 @@ using CellArrays: CellArrays, CellArray, ArrayCell, celllength
 # component axis) is never used by the exchange (that axis is never named in
 # `dims`), but `field()`'s constructor validates every dimension
 # unconditionally, so a valid-but-inert placeholder (`1`) is supplied.
-function cellarray_field_batched(A::CellArray{T,N,0}, halowidths::NTuple{N,Int}) where {T<:ArrayCell,N}
+function cellarray_field_batched(A::CellArray{T,N,0}, halowidths::NTuple{N,Int}, overlaps::NTuple{N,Int} = 2 .* halowidths) where {T<:ArrayCell,N}
     ncomp = celllength(A)
     flat = reshape(A.data, (A.dims..., ncomp))
-    return HaloArrays.field(flat; halowidths=(halowidths..., 1))
+    return HaloArrays.field(flat; halowidths=(halowidths..., 1), overlaps=(overlaps..., 2))
 end
 
 # --- B=1 (AoS): per-component decomposition, unchanged from the original design. ---
@@ -52,11 +52,11 @@ end
 # correct (and still reuses `CellArrays.field(A,(j,))`'s zero-copy strided
 # view, so still no new pack/unpack code), just without the single-message
 # win B=0 gets.
-function cellarray_fields_percomponent(A::CellArray{T,N}, halowidths::NTuple{N,Int}) where {T<:ArrayCell,N}
-    return ntuple(j -> HaloArrays.field(CellArrays.field(A, (j,)); halowidths=halowidths), celllength(A))
+function cellarray_fields_percomponent(A::CellArray{T,N}, halowidths::NTuple{N,Int}, overlaps::NTuple{N,Int} = 2 .* halowidths) where {T<:ArrayCell,N}
+    return ntuple(j -> HaloArrays.field(CellArrays.field(A, (j,)); halowidths=halowidths, overlaps=overlaps), celllength(A))
 end
 
-function cellarray_fields_percomponent(A::CellArray{T,N}, ::NTuple{N,Int}) where {T<:Number,N}
+function cellarray_fields_percomponent(A::CellArray{T,N}, ::NTuple{N,Int}, ::NTuple{N,Int} = ntuple(_ -> 2, N)) where {T<:Number,N}
     error(
         "HaloArrays' CellArrays extension only supports multi-component cell types " *
         "(SArray/FieldArray); got a CellArray{$T,...} with a scalar (Number) cell type, " *
@@ -67,12 +67,12 @@ end
 # Single dispatch point shared by update_halo!/halo_exchange_start! below,
 # picking the batched (B=0) or per-component (any other B, including the
 # T<:Number rejection) path.
-_cellarray_start!(grid::Grid{N}, A::CellArray{T,N,0}, hw::NTuple{N,Int}, dims::Tuple, region::Symbol) where {T<:ArrayCell,N} =
-    _halo_exchange_start!(grid, (cellarray_field_batched(A, hw),), dims, region)
-_cellarray_start!(grid::Grid{N}, A::CellArray{T,N,B}, hw::NTuple{N,Int}, dims::Tuple, region::Symbol) where {T<:ArrayCell,N,B} =
-    _halo_exchange_start!(grid, cellarray_fields_percomponent(A, hw), dims, region)
-_cellarray_start!(grid::Grid{N}, A::CellArray{T,N}, hw::NTuple{N,Int}, dims::Tuple, region::Symbol) where {T<:Number,N} =
-    _halo_exchange_start!(grid, cellarray_fields_percomponent(A, hw), dims, region)  # always errors
+_cellarray_start!(grid::Grid{N}, A::CellArray{T,N,0}, hw::NTuple{N,Int}, ol::NTuple{N,Int}, dims::Tuple, region::Symbol) where {T<:ArrayCell,N} =
+    _halo_exchange_start!(grid, (cellarray_field_batched(A, hw, ol),), dims, region)
+_cellarray_start!(grid::Grid{N}, A::CellArray{T,N,B}, hw::NTuple{N,Int}, ol::NTuple{N,Int}, dims::Tuple, region::Symbol) where {T<:ArrayCell,N,B} =
+    _halo_exchange_start!(grid, cellarray_fields_percomponent(A, hw, ol), dims, region)
+_cellarray_start!(grid::Grid{N}, A::CellArray{T,N}, hw::NTuple{N,Int}, ol::NTuple{N,Int}, dims::Tuple, region::Symbol) where {T<:Number,N} =
+    _halo_exchange_start!(grid, cellarray_fields_percomponent(A, hw, ol), dims, region)  # always errors
 
 """
     update_halo!(grid::Grid, A::CellArray; halowidths=ntuple(_->1,N), dims=ntuple(identity,N), region=:full)
@@ -104,8 +104,9 @@ batched components and leaving halo edges/corners unchanged.
 """
 function HaloArrays.update_halo!(grid::Grid{N}, A::CellArray{T,N};
         halowidths::NTuple{N,Integer} = ntuple(_ -> 1, N),
+        overlaps::NTuple{N,Integer} = 2 .* halowidths,
         dims::Tuple = ntuple(identity, N), region::Symbol = :full) where {T,N}
-    handle = _cellarray_start!(grid, A, Int.(halowidths), dims, region)
+    handle = _cellarray_start!(grid, A, Int.(halowidths), Int.(overlaps), dims, region)
     halo_exchange_finish!(handle)
     return nothing
 end
@@ -120,6 +121,7 @@ restrictions and the `B=0`-batched/`B=1`-per-component split.
 """
 function HaloArrays.halo_exchange_start!(grid::Grid{N}, A::CellArray{T,N};
         halowidths::NTuple{N,Integer} = ntuple(_ -> 1, N),
+        overlaps::NTuple{N,Integer} = 2 .* halowidths,
         dims::Tuple = ntuple(identity, N), region::Symbol = :full) where {T,N}
-    return _cellarray_start!(grid, A, Int.(halowidths), dims, region)
+    return _cellarray_start!(grid, A, Int.(halowidths), Int.(overlaps), dims, region)
 end

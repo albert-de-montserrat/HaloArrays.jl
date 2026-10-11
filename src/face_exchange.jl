@@ -3,8 +3,9 @@
 # inert Field halo-width placeholders.
 function face_range(f::Field{T,NF}, ::Val{N}, dim, side, sending::Bool) where {T,NF,N}
     hw = f.halowidths[dim]
+    ol = f.overlaps[dim]
     len = size(f.data, dim)
-    start = sending ? (side == 1 ? hw + 1 : len - 2hw + 1) :
+    start = sending ? (side == 1 ? ol - hw + 1 : len - ol + 1) :
         (side == 1 ? 1 : len - hw + 1)
     return ntuple(NF) do d
         d == dim ? (start:start+hw-1) :

@@ -12,8 +12,8 @@ JustRelax's staggered fields do not all meet that condition.
 | ImplicitGlobalGrid.jl | HaloArrays.jl | Conditions |
 |---|---|---|
 | `init_global_grid(...)` | `topology(...); grid(t, nlocal)` | Supply dimensionality, communicator, and periodicity explicitly. |
-| `update_halo!(A)` | `update_halo!(g, A)` | Matching layout, shape equal to `g.nlocal`, and halo width 1. |
-| Per-array custom halo width | `field(A; halowidths=(2,2))` | Width cannot independently specify duplicated interface points. |
+| `update_halo!(A)` | `update_halo!(g, A)` | Shape equal to `g.nlocal`; default halo width 1 and overlap 2. |
+| Per-array halo width and overlap | `field(A; halowidths=(2,2), overlaps=(4,4))` | `overlaps` is the array overlap `o_A` below; it defaults to `2*halowidths`. |
 | `nx_g()`, `x_g(...)`, etc. | Explicit `(Grid, Field)` coordinate helpers | Verify rank stride and physical origin too. |
 
 ## Check overlap and rank stride
@@ -22,7 +22,9 @@ For a dimension with base size `n`, array size `m`, base overlap `o`, and
 exchange width `h`, ImplicitGlobalGrid derives the array overlap as
 `o_A = o + m - n`. Its low send strip starts at `1 + o_A - h`; its high
 send strip starts at `m - o_A + 1`. HaloArrays starts these strips at
-`h + 1` and `m - 2h + 1`, respectively. These agree when `o_A == 2h`.
+`overlaps - h + 1` and `m - overlaps + 1`, respectively, so pass
+`overlaps = o_A` to `field` and the ranges agree. With the default
+`overlaps = 2h` they start at `h + 1` and `m - 2h + 1`.
 
 Both receive into the outer `h` cells. If `o_A < 2h`, ImplicitGlobalGrid
 skips exchange in that dimension; HaloArrays has no equivalent per-field
@@ -34,24 +36,26 @@ With JustRelax's usual `init_global_grid(nx, ny, 1)` defaults (`o=2`,
 | Field | Array size | Effective overlap | Bare-array migration |
 |---|---|---|---|
 | `stokes.viscosity.η`, `ητ` | `(nx, ny)` | `(2,2)` | Exchange ranges match. |
-| `stokes.τ.xy`, vertex normal stresses, `ηv` | `(nx+1, ny+1)` | `(3,3)` | Unsupported shared-interface layout. |
-| `stokes.V.Vx` | `(nx+1, ny+2)` | `(3,4)` | Unsupported shared-interface layout. |
-| `stokes.V.Vy` | `(nx+2, ny+1)` | `(4,3)` | Unsupported shared-interface layout. |
-| `thermal.T` | `(nx+2, ny+2)` | `(4,4)` | Unsupported with the original width 1. |
+| `stokes.τ.xy`, vertex normal stresses, `ηv` | `(nx+1, ny+1)` | `(3,3)` | `overlaps=(3,3)` on a grid of its own shape. |
+| `stokes.V.Vx` | `(nx+1, ny+2)` | `(3,4)` | `overlaps=(3,4)` on a grid of its own shape. |
+| `stokes.V.Vy` | `(nx+2, ny+1)` | `(4,3)` | `overlaps=(4,3)` on a grid of its own shape. |
+| `thermal.T` | `(nx+2, ny+2)` | `(4,4)` | `overlaps=(4,4)` on a grid of its own shape. |
 
 For example, at `nx=8`, a vertex array has length 9. The old low/high
-send indices are `3` and `7`; HaloArrays with width 1 sends indices `2`
-and `8`. A rank-constant test cannot detect this shift.
+send indices are `3` and `7`. HaloArrays with width 1 and the default
+`overlaps=(2,)` sends indices `2` and `8`; `overlaps=(3,)` restores `3`
+and `7`. A rank-constant test cannot detect this shift.
 
-Creating a separate grid for each shape satisfies shape validation but
-does not fix these indices. Increasing halo width changes the receive
-region and number of exchanged cells, so it is not an equivalent migration.
-The old rank stride is `n-o`; HaloArrays' corresponding stride is `m-2h`.
+Each distinct shape still needs its own grid to satisfy shape validation.
+Increasing halo width instead of overlap changes the receive region and
+number of exchanged cells, so it is not an equivalent migration. The old
+rank stride is `n-o`; HaloArrays uses `m-overlaps`, which is the same when
+`overlaps = o_A`.
 
 ## A supported exchange pattern
 
-For a layout whose effective overlap equals twice its halo width in every
-exchanged dimension, build a grid once and reuse it:
+Build a grid once and reuse it. Add `overlaps=` to `field` when the layout
+is not the default `2*halowidths`:
 
 ```julia
 using HaloArrays
@@ -87,7 +91,8 @@ See [coordinate helpers](./coordinates.md) for explicit coordinate APIs.
 Verify the old rank stride and location-dependent origin before substituting
 those helpers. Matching function names does not establish matching coordinates.
 
-HaloArrays currently has no explicit representation for the extra shared
-interface points described above. Keep those call sites on their existing
-exchange implementation until the layout is supported or the solver's
-storage/ownership scheme is deliberately changed and tested.
+Fields with `overlaps != 2*halowidths` are supported by `update_halo!`, the
+face exchange and the coordinate helpers, but not by `save_hdf5`/`load_hdf5!`
+or `save_pvtk`, which reject them. `nlocal_from_global` assumes the default
+overlap. Verify any migrated call site with a position-encoded test, not a
+rank-constant one.

@@ -28,10 +28,10 @@ once, not zero times:
 """
 function nglobal(grid::Grid{N}, field::Field{T,N}, dim::Integer) where {T,N}
     1 <= dim <= N || error("dim=$dim out of range for a $N-dimensional grid.")
-    hw = field.halowidths[dim]
+    ol = field.overlaps[dim]
     dims = grid.topology.dims[dim]
     nlocal = grid.nlocal[dim]
-    return dims * (nlocal - 2 * hw) + 2 * hw * !grid.topology.periods[dim]
+    return dims * (nlocal - ol) + ol * !grid.topology.periods[dim]
 end
 
 """
@@ -73,12 +73,12 @@ iglobal(grid, f, 1, 1)   # first local index (including halo) -> its global inde
 function iglobal(grid::Grid{N}, field::Field{T,N}, dim::Integer, i::Integer;
                   wrap_periodic::Bool = true) where {T,N}
     1 <= dim <= N || error("dim=$dim out of range for a $N-dimensional grid.")
-    hw = field.halowidths[dim]
+    ol = field.overlaps[dim]
     coord = grid.topology.coords[dim]
     nlocal = grid.nlocal[dim]
     periodic = grid.topology.periods[dim]
-    ig0 = periodic ? -hw : 0
-    ig = coord * (nlocal - 2 * hw) + i + ig0
+    ig0 = periodic ? -(ol ÷ 2) : 0
+    ig = coord * (nlocal - ol) + i + ig0
     if periodic && wrap_periodic
         ng = nglobal(grid, field, dim)
         ig > ng && (ig -= ng)

@@ -84,8 +84,9 @@ end
 # immediately adjacent to that side's halo.
 function sendrange(f::Field{T,N}, dim::Integer, n::Integer) where {T,N}
     hw = f.halowidths[dim]
+    ol = f.overlaps[dim]
     nA = size(f.data, dim)
-    start = n == 1 ? hw + 1 : nA - 2hw + 1
+    start = n == 1 ? ol - hw + 1 : nA - ol + 1
     return ntuple(d -> d == dim ? (start:start+hw-1) : (1:size(f.data, d)), N)
 end
 

@@ -59,6 +59,9 @@ read or write — i.e. `field.data`'s full extent in that dimension, minus
 """
 function local_interior_range(grid::HaloArrays.Grid, field::HaloArrays.Field, dim::Integer)
     hw = field.halowidths[dim]
+    field.overlaps[dim] == 2hw || error(
+        "save_hdf5/load_hdf5! only support fields with the default overlaps " *
+        "(2*halowidths); got overlaps=$(field.overlaps), halowidths=$(field.halowidths).")
     lo_neighbor, hi_neighbor = grid.topology.neighbors[dim]
     lo_trim = HaloArrays.has_neighbor(lo_neighbor) ? hw : 0
     hi_trim = HaloArrays.has_neighbor(hi_neighbor) ? hw : 0
