@@ -1,93 +1,119 @@
 # Working on HaloArrays.jl
 
 HaloArrays is a Julia package for explicit Cartesian MPI topologies and halo
-exchange in 2D and 3D. Read the relevant implementation and tests before editing.
-Treat the current source as authoritative; the workspace's `../REDESIGN_PLAN.md`
-provides design context, including features that may not yet exist.
+exchange in 2D and 3D. Read the relevant source and tests before editing.
+The current source is authoritative. `../REDESIGN_PLAN.md` (workspace parent, not
+in this repo) gives design context and may describe features that do not exist yet.
+
+This file is read by both Claude Code (via `CLAUDE.md`) and Codex. Keep it
+tool-neutral. Directory-specific rules live in `src/AGENTS.md`, `test/AGENTS.md`,
+and `docs/AGENTS.md`. Task playbooks live in `.agents/skills/`.
 
 ## Repository map
 
-- `src/topology.jl`: Cartesian communicators, ranks, coordinates, neighbors.
-- `src/grid.jl`: local sizes, coordinate metadata, and owned exchange cache.
-- `src/field.jl`: array wrappers and per-field halo widths.
-- `src/exchange_cache.jl`: reusable byte buffers, MPI requests, pending state.
-- `src/halo_exchange.jl`: packing, dimension ordering, blocking and split API.
-- `src/validation.jl`: shape and duplicate-array checks.
-- `src/gather.jl`: gathering arrays using MPI derived datatypes.
-- `src/reduce.jl`: `global_sum`/`global_max`/`global_min`/`global_reduce`/
-  `global_allreduce` — thin `Topology`/`Grid`-based wrappers around
-  `MPI.Reduce`/`MPI.Allreduce` for one-scalar-per-rank diagnostics; reduce
-  local array data with plain Julia first, then pass the resulting scalar in.
-  `global_norm` is the one exception that takes the local array itself (a
-  `p`-norm's combining step, sum-of-powers then a single root at the end, is
-  easy to get wrong by hand, unlike a plain associative op). None of these
-  need GPU-specific code: the local step runs generically on whatever
-  backend the data already lives on, and only a host scalar ever reaches MPI.
-- `src/backend.jl`: backend dispatch stubs (`is_cuarray`/`is_rocarray`,
-  `pack_target`/`unpack_source`/`stage_send!`/`stage_recv!`), overridden by the
-  CUDA/AMDGPU extensions via ordinary multiple dispatch on the array type.
-- `ext/HaloArraysCUDAExt.jl` + `src/CUDAExt/`: real, tested (GPU present on
-  this machine) CUDA support — device-resident pack/unpack buffers
-  (`CUDACache`) plus host<->device staging around unchanged host-only MPI
-  transport. `ext/HaloArraysAMDGPUExt.jl` + `src/AMDGPUExt/`: structurally
-  identical ROCArray mirror, untested here (no AMD GPU available). Neither
-  manages device selection (rank-to-GPU assignment) or CUDA/ROCm-aware MPI —
-  both explicitly out of scope, documented in the extension files themselves.
-- `test/`: standalone Julia tests and an MPI subprocess driver. `test_cuda.jl`/
-  `test_amdgpu.jl` need real (not weak) CUDA/AMDGPU dependencies, so they run
-  under `test/Project.toml` (`HaloArrays` itself `Pkg.develop`ed via
-  `[sources]`), not the package root — `test/runtests.jl` handles this
-  automatically; each file skips gracefully via `functional()` if no usable
-  GPU is present.
-- `docs/`: VitePress Markdown site; `examples/`: runnable Julia examples.
-- `benchmarks/`: HaloArrays.jl vs ImplicitGlobalGrid.jl comparison harness —
-  `bench_haloarrays*.jl`/`bench_igg*.jl` + `run_comparison*.sh` (CPU,
-  workstation-scale) and `gpu/` (CUDA, cluster-scale via `slurm_*.sh`,
-  own `Project.toml` since both packages only weakdep CUDA). Not part of
-  `test/runtests.jl`; run manually, results are not correctness tests.
+Core (`src/`, included in this order by `src/HaloArrays.jl`):
+
+- `topology.jl`: `Topology`, `topology`, `subtopology`, `has_neighbor`.
+- `field.jl`: `Field` with per-dimension `halowidths` and `overlaps`.
+- `exchange_cache.jl`: byte buffers, MPI requests, `pending` flag, `threaded_pack`.
+- `grid.jl`: `Grid`, local sizes (`nlocal` includes halo), owned cache.
+- `validation.jl`: shape and duplicate-array checks.
+- `backend.jl`: dispatch stubs (`is_cuarray`, `is_rocarray`, `pack_target`,
+  `unpack_source`, `stage_send!`, `stage_recv!`) that extensions override.
+- `halo_exchange.jl`: full exchange, `update_halo!`, split `halo_exchange_start!`/
+  `halo_exchange_finish!`, `@hide_halo_communication` (needs ParallelStencil).
+- `face_exchange.jl`: `region=:faces` exchange, separate tag space and buffer slots.
+- `gather.jl`: `gather!` with MPI derived datatypes.
+- `reduce.jl`: `global_sum/max/min/reduce/allreduce/norm`. Reduce local data with
+  plain Julia first and pass one scalar per rank. Only `global_norm` takes an array.
+- `coordinates.jl`: `nglobal`, `iglobal`, `coord_g` and `nx_g`/`ix_g`/`x_g` families.
+- `HDF5IO.jl`, `PVTKIO.jl`: stubs for `save_hdf5`/`load_hdf5!`/`save_pvtk`.
+
+Optional backends. Each extension file in `ext/` is thin glue that `include`s
+real code from a same-named `src/*Ext/` directory:
+
+- `HaloArraysCUDAExt` + `src/CUDAExt/`: tested on this machine (GPU present).
+- `HaloArraysAMDGPUExt` + `src/AMDGPUExt/`: mirror of CUDA, untested (no AMD GPU).
+- `HaloArraysCellArraysExt` + `src/CellArraysExt/`: decomposes a `CellArray` into
+  component views and reuses the normal `Field` path.
+- `HaloArraysHDF5Ext` + `src/HDF5Ext/`, `HaloArraysWriteVTKExt` + `src/WriteVTKExt/`.
+- `HaloArraysParallelStencilExt`: `@hide_halo_communication` implementation.
+- Device selection (rank-to-GPU) and CUDA/ROCm-aware MPI are out of scope.
+
+Other directories:
+
+- `test/`: standalone test files plus the subprocess driver `runtests.jl`.
+  `test/Project.toml` holds weakdeps the root project cannot load.
+- `docs/`: Documenter.jl + DocumenterVitepress site. `examples/`: runnable scripts.
+- `benchmarks/`: comparison harness against ImplicitGlobalGrid.jl. Gitignored
+  output, not correctness tests, not run by `test/runtests.jl`.
+- `summary.md`, `visualize.jl` (repo root) are local scratch; leave them alone.
 
 ## Implementation conventions
 
-- Preserve explicit `Topology` / `Grid` ownership. Do not introduce a global
-  current grid, shared communication cache, or runtime backend flags.
-- Halo widths belong to `Field`; `Grid.nlocal` includes halo cells.
-- Keep one unfinished exchange per grid. Complete earlier dimensions before
-  packing later ones so corner data propagates correctly.
-- Independent concurrent communication should use separate topologies, which
-  own separate communicators. Cache ownership alone does not isolate MPI tags.
-- Preserve tuple specialization and the thin keyword/vararg wrapper pattern in
-  exchange code. Measure allocations before simplifying these hot paths.
-- Packing threads are opt-in; keep MPI calls out of spawned packing tasks.
-- Match the existing four-space Julia style and mutating `!` naming. Update
-  docstrings and corresponding documentation when public behavior changes.
+- Keep explicit `Topology` / `Grid` ownership. Do not add a global current grid,
+  a shared communication cache, or runtime backend flags.
+- Halo widths and overlaps belong to `Field`. `Grid.nlocal` includes halo cells.
+- Allow one unfinished exchange per grid. Finish earlier dimensions before packing
+  later ones so corner data propagates. Face exchange (`region=:faces`) is the
+  exception: it excludes transverse halos and keeps all requested dimensions pending.
+- Use separate topologies (separate communicators) for independent concurrent
+  communication. Cache ownership alone does not isolate MPI tags.
+- Keep tuple specialization and the thin keyword/vararg wrapper pattern in
+  exchange code. Measure allocations before simplifying a hot path.
+- Packing threads are opt-in (`threaded_pack` at `grid` construction). Never call
+  MPI from spawned packing tasks.
+- Backend code goes in an extension and dispatches on the array type. Do not add
+  `if cuda` branches to core. Optional features follow the stub-in-core,
+  methods-in-extension pattern (see `src/HDF5IO.jl`).
+- Match the four-space Julia style and mutating `!` naming. Update docstrings and
+  the matching docs page when public behavior changes. The API page is generated
+  from docstrings, so fix the docstring, not the page.
 - Do not describe planned GPU support or performance targets as verified features.
-- Preserve pre-existing staged and unstaged work. Do not stage or commit unless asked.
+- Preserve existing staged and unstaged work. Do not stage or commit unless asked.
 
 ## Validation
 
-Run commands from the repository root:
+Run from the repository root. Do not wrap the driver in `mpiexec`.
 
 ```sh
 julia --project=. -e 'using Pkg; Pkg.instantiate()'
-julia --project=. --startup-file=no test/test_field.jl
-julia --project=. --startup-file=no test/runtests.jl
+julia --project=. --startup-file=no test/test_field.jl          # no MPI needed
+julia --project=. --startup-file=no test/runtests.jl            # full matrix
 ```
 
-The driver launches MPI tests at 1, 2, 4, and 8 ranks, and threaded packing tests
-at 1 and 2 ranks with four Julia threads. Do not wrap the driver in `mpiexec`.
-Use focused tests while developing; run the MPI matrix for communication changes.
-Allocation changes need warmed-up allocation tests; threading changes need the
-threaded tests. Report skipped checks and environment limitations accurately.
-
-For documentation changes:
+Run one MPI test file at a time while developing:
 
 ```sh
-npm ci
-npm run docs:build
+julia --project=. --startup-file=no -e 'using MPI; MPI.mpiexec() do exe; run(`$exe -n 4 $(Base.julia_cmd()) --project=. --startup-file=no test/test_halo_exchange.jl`); end'
 ```
 
+The driver runs CPU files at 1, 2, 4, 8 ranks. Threaded files run at 1 and 2 ranks
+with `-t 4`. Files that need `test/Project.toml` (GPU, CellArrays, HDF5,
+ParallelStencil, WriteVTK) are skipped with a printed message unless
+`test/Manifest.toml` exists. Run
+`julia --project=test -e 'using Pkg; Pkg.instantiate()'` once to enable them.
+GPU files also skip when no functional GPU is present.
+
+- Use focused tests while developing. Run the full MPI matrix for any change to
+  communication, packing, topology, or grid code.
+- Allocation changes need warmed-up allocation tests. Threading changes need the
+  threaded tests.
+- Report skipped checks and environment limits exactly. Do not claim a GPU, HDF5,
+  or AMDGPU path passed if the driver skipped it.
+
+CI (`.github/workflows/ci.yml`) is CPU-only on Julia 1.9 and 1.x. It deletes
+`Manifest.toml`, runs `test/runtests.jl`, runs four `examples/*.jl` scripts, and
+builds docs. Keep code compatible with Julia 1.9 (`Project.toml` compat).
+
+Documentation changes:
+
+```sh
+julia --project=docs --startup-file=no -e 'using Pkg; Pkg.instantiate()'
+julia --project=docs --startup-file=no docs/make.jl
+```
+
+Output goes to `docs/build/1`, which is gitignored. No Node.js step is needed.
 Keep internal links valid, public signatures consistent with source, and examples
-runnable from the package project. The quickstart page includes its code directly
-from `examples/quickstart.jl`. Commit the npm lockfile; never commit `node_modules`,
-VitePress cache, or generated site output. A docs-only edit does not require the
-full MPI matrix; execute new or changed Julia examples when possible.
+runnable from the package project. A docs-only edit does not need the MPI matrix;
+run new or changed example scripts.

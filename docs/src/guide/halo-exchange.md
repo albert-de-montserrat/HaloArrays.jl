@@ -20,6 +20,8 @@ An exchange restricted to one dimension does not refresh the other halos.
 
 ## Overlaps wider than two halos
 
+![Two ranks along one dimension. Halo width is 2 in both cases. With the default overlap of 4 the strip rank A sends is next to its halo. With overlap 6 the sent strip moves two cells inward. Either way it lands in the halo of rank B.](../assets/overlaps.png)
+
 By default neighboring ranks share `2*halowidths[d]` lines. Pass `overlaps=`
 to `field` to share more, for staggered or padded arrays:
 
@@ -37,6 +39,8 @@ local size, instead of the lines next to the halo. `overlaps[d]` must satisfy
 `region=:faces` honor it; `save_hdf5`, `load_hdf5!` and `save_pvtk` reject it.
 
 ## Face halos for axial stencils
+
+![Full exchange fills every halo cell including corners. Face exchange fills only the face slabs and leaves the corner halos untouched.](../assets/faces.png)
 
 ```julia
 update_halo!(g, temperature; region=:faces)
@@ -86,6 +90,8 @@ julia --project=. examples/face_exchange.jl
 ```
 
 ## Overlapping independent computation ("hiding" communication)
+
+![Schematic timelines. Blocking: a kernel over the whole array, then update_halo!. Split phase: outer shell compute, start!, then the inner box overlapping the last-dimension communication, then finish!.](../assets/timeline.png)
 
 ```julia
 handle = halo_exchange_start!(g, f)
@@ -154,6 +160,8 @@ overwrites provisional values at internal interfaces, while nonperiodic domain
 walls retain the imposed values.
 
 ### Why only the last dimension overlaps in full exchange
+
+![Three panels of a 2D array. Before exchange all halo cells are stale. After dimension 1 the left and right halos are filled. After dimension 2 the top and bottom halos are filled, including the four corners, which arrive via two hops.](../assets/corners.png)
 
 Full halo exchange is sequential across dimensions: dimension 2's
 packing has to read what dimension 1's unpacking just wrote, so that a corner

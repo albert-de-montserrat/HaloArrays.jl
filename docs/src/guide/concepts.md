@@ -12,6 +12,8 @@ Both the constructor functions and the type names are exported.
 
 ## Process topology
 
+![A 3 by 2 Cartesian topology of six ranks, periodic in x, with arrows showing exchange between neighboring local arrays.](../assets/topology.png)
+
 ```julia
 t = topology((0, 0); periods=(true, false))
 ```
