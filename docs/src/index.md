@@ -19,8 +19,25 @@ features:
     details: Exchange multiple fields across Cartesian process layouts with periodic or nonperiodic boundaries.
   - title: Split-phase exchange
     details: Start an exchange, perform independent work, then finish the final dimension's communication.
+  - title: Per-field halos and overlaps
+    details: Each field declares its own halo width and overlap, so staggered and padded arrays share one grid.
+  - title: Optional backends and I/O
+    details: CUDA arrays (tested on hardware), AMDGPU arrays (untested), CellArrays, parallel HDF5-style checkpoints, and ParaView output load as extensions.
+  - title: Reductions and coordinates
+    details: Global sums, extrema, and norms, plus global index and coordinate helpers for each field.
 ---
 ```
+
+## How it fits together
+
+A `Topology` arranges MPI ranks on a Cartesian lattice. Each rank owns a local array
+whose outer cells are halos, filled from its neighbors by `update_halo!`.
+
+![A 3 by 2 Cartesian topology of six ranks, periodic in x, with arrows showing exchange between neighboring local arrays.](assets/topology.png)
+
+Continue with [Topologies, grids, and fields](./guide/concepts.md) for the model,
+[Halo exchange](./guide/halo-exchange.md) for corners, face halos, and overlaps, or
+[Hiding communication](./guide/hide-communication.md) for the split-phase API.
 
 ## Current scope
 

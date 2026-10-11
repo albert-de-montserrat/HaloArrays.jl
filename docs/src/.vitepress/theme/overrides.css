@@ -1,0 +1,236 @@
+/* HaloArrays.jl theme.
+   Loaded after DocumenterVitepress' style.css, so these rules win. Only this file is
+   customized; the rest of the theme (index.ts, style.css, docstrings.css) is the
+   DocumenterVitepress default, which keeps upgrades painless.
+   Palette matches the figures in docs/figures/common.jl. */
+
+:root {
+  --ha-ink: #143541;
+  --ha-teal: #64b5cd;
+  --ha-teal-deep: #1d7894;
+  --ha-halo: #eda65a;
+  --ha-accent: #c4553a;
+  --ha-cell: 36px; /* size of the decorative halo-cell grid */
+  --ha-radius: 12px;
+}
+
+/* ---- Brand colors ---------------------------------------------------- */
+:root {
+  --vp-c-brand-1: var(--ha-teal-deep);
+  --vp-c-brand-2: #2a8dac;
+  --vp-c-brand-3: var(--ha-teal);
+  --vp-c-brand-soft: rgba(100, 181, 205, 0.16);
+  --vp-c-brand: var(--ha-teal-deep);
+  --vp-c-brand-light: var(--ha-teal-deep);
+  --vp-button-brand-bg: var(--ha-teal-deep);
+  --vp-button-brand-border: transparent;
+  --vp-button-brand-text: #fff;
+  --vp-button-brand-hover-bg: #2a8dac;
+  --vp-button-brand-hover-border: transparent;
+  --vp-button-brand-hover-text: #fff;
+  --vp-button-brand-active-bg: var(--ha-ink);
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(120deg, var(--ha-teal-deep) 20%, var(--ha-halo) 95%);
+  --vp-custom-block-tip-bg: var(--vp-c-brand-soft);
+  --vp-custom-block-tip-border: var(--ha-teal);
+}
+
+.dark {
+  --vp-c-brand-1: var(--ha-teal);
+  --vp-c-brand-2: #82c6d9;
+  --vp-c-brand-3: #4ea5be;
+  --vp-c-brand-soft: rgba(100, 181, 205, 0.18);
+  --vp-c-brand: var(--ha-teal);
+  --vp-c-brand-light: var(--ha-teal);
+  --vp-button-brand-bg: var(--ha-teal);
+  --vp-button-brand-text: var(--ha-ink);
+  --vp-button-brand-hover-bg: #82c6d9;
+  --vp-button-brand-hover-text: var(--ha-ink);
+  --vp-button-brand-active-bg: #4ea5be;
+  --vp-home-hero-name-background: linear-gradient(120deg, var(--ha-teal) 20%, var(--ha-halo) 95%);
+  --vp-c-bg: #101a1f;
+  --vp-c-bg-alt: #0c1418;
+  --vp-c-bg-elv: #16242b;
+  --vp-c-bg-soft: #16242b;
+  --vp-custom-block-tip-bg: var(--vp-c-brand-soft);
+}
+
+/* ---- Navigation: translucent bar --------------------------------------- */
+.VPNavBar:not(.home.top) {
+  backdrop-filter: saturate(160%) blur(10px);
+  -webkit-backdrop-filter: saturate(160%) blur(10px);
+}
+.VPNavBar:not(.home.top) .wrapper .content-body,
+.VPNavBar:not(.home.top) .divider-line {
+  background-color: color-mix(in srgb, var(--vp-c-bg) 78%, transparent);
+}
+
+/* ---- Home hero ---------------------------------------------------------- */
+/* A faint grid of cells behind the hero: the halo-array motif. */
+.VPHome {
+  position: relative;
+}
+.VPHome::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 620px;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--ha-teal) 22%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--ha-teal) 22%, transparent) 1px, transparent 1px);
+  background-size: var(--ha-cell) var(--ha-cell);
+  -webkit-mask-image: radial-gradient(ellipse 70% 80% at 50% 0%, #000 20%, transparent 75%);
+  mask-image: radial-gradient(ellipse 70% 80% at 50% 0%, #000 20%, transparent 75%);
+}
+.VPHero .name,
+.VPHero .text {
+  letter-spacing: -0.02em;
+}
+.VPHero .name {
+  font-weight: 800;
+}
+.VPHero .tagline {
+  max-width: 34em;
+}
+.VPHero .actions .VPButton {
+  border-radius: 999px;
+  font-weight: 600;
+  transition: transform 0.15s ease, background-color 0.2s ease;
+}
+.VPHero .actions .VPButton:hover {
+  transform: translateY(-1px);
+}
+
+/* ---- Feature cards ------------------------------------------------------- */
+.VPFeature {
+  border: 1px solid var(--vp-c-divider);
+  border-radius: var(--ha-radius);
+  background: var(--vp-c-bg-soft);
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.VPFeature::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--ha-teal), var(--ha-halo));
+  opacity: 0.85;
+}
+.VPFeature:hover {
+  transform: translateY(-3px);
+  border-color: var(--ha-teal);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--ha-ink) 14%, transparent);
+}
+.VPFeature .title {
+  font-weight: 700;
+}
+
+/* ---- Content ------------------------------------------------------------- */
+.vp-doc h1 {
+  letter-spacing: -0.02em;
+  font-weight: 800;
+}
+.vp-doc h2 {
+  border-top: none;
+  padding-top: 8px;
+  margin-top: 40px;
+  letter-spacing: -0.01em;
+}
+.vp-doc h2::before {
+  content: "";
+  display: inline-block;
+  width: 0.55em;
+  height: 0.55em;
+  margin-right: 0.4em;
+  border-radius: 3px;
+  background: var(--ha-halo);
+  box-shadow: 0.35em 0 0 -0.12em var(--ha-teal);
+  vertical-align: 0.05em;
+}
+
+/* Figures: card look, readable in light and dark mode. */
+.vp-doc img {
+  display: block;
+  margin: 24px auto;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: var(--ha-radius);
+  box-shadow: 0 2px 14px color-mix(in srgb, var(--ha-ink) 8%, transparent);
+  background: #f7f8fa; /* same as the figure background */
+}
+.vp-doc img[src*="logo"] {
+  border: none;
+  box-shadow: none;
+  background: transparent;
+}
+
+/* Code */
+.vp-doc div[class*="language-"] {
+  border-radius: var(--ha-radius);
+  border: 1px solid var(--vp-c-divider);
+}
+.vp-doc :not(pre) > code {
+  border-radius: 6px;
+  padding: 0.15em 0.4em;
+}
+
+/* Tables */
+.vp-doc table {
+  display: table;
+  width: 100%;
+  border-radius: var(--ha-radius);
+  overflow: hidden;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--vp-c-divider);
+}
+.vp-doc th {
+  background: var(--vp-c-brand-soft);
+  color: var(--vp-c-text-1);
+}
+.vp-doc tr {
+  border-top: none;
+}
+.vp-doc td,
+.vp-doc th {
+  border: none;
+  border-top: 1px solid var(--vp-c-divider);
+}
+.vp-doc thead tr th {
+  border-top: none;
+}
+
+/* Callouts */
+.vp-doc .custom-block {
+  border-radius: var(--ha-radius);
+}
+
+/* Sidebar: active item gets a cell-colored marker */
+.VPSidebarItem.is-active > .item .link > .text {
+  color: var(--vp-c-brand-1);
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  :root {
+    --ha-cell: 28px;
+  }
+  .VPHome::before {
+    height: 480px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .VPFeature,
+  .VPHero .actions .VPButton {
+    transition: none;
+  }
+  .VPFeature:hover,
+  .VPHero .actions .VPButton:hover {
+    transform: none;
+  }
+}

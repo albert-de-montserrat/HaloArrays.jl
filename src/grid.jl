@@ -84,7 +84,7 @@ naming the dimension, if `gridsize[d]` does not divide evenly across
 `topology.dims[d]` once `halowidths[d]` is accounted for. `halowidths` here
 is used *only* for this computation, exactly like the manual
 `nl = core ÷ dims[d] + 2*hw[d]` arithmetic the
-["Restart with a different number of ranks"](@ref) guide section and
+[Restart with a different number of ranks](@ref) guide section and
 `test_hdf5_io.jl`'s restart test already do by hand — `Grid` still stores no
 halo-width information of its own (that remains [`Field`](@ref)'s
 responsibility). Consequently, only a `Field` built with the *same*

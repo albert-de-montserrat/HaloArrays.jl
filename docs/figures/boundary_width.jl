@@ -1,4 +1,4 @@
-# Run with --project=benchmarks/cpu, which already depends on CairoMakie.
+# Run with --project=docs/figures.
 using CairoMakie
 
 function main()
