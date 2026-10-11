@@ -2,8 +2,9 @@
 # test/runtests.jl, but explicitly looping an `mpiexec -n N` matrix per file
 # instead of trusting whatever N invoked the driver (test_field.jl needs no
 # MPI ranks at all and is run once, plainly).
-import Pkg
-Pkg.activate(joinpath(@__DIR__, ".."))
+# No `Pkg.activate` here: every test subprocess below gets an explicit
+# `--project`, and `Pkg.test` runs this file in a sandbox where `Pkg` itself is
+# not a dependency (importing it fails with "Package Pkg not found").
 import MPI
 
 const NPROCS_MATRIX = [1, 2, 4, 8]
