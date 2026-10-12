@@ -12,11 +12,22 @@ function can_overlap(widths, ranges)
     return all(d -> length(ranges[d]) > 2 * widths[d], eachindex(ranges))
 end
 
+# Host arrays default to the blocking path: ParallelStencil's own CPU
+# `@hide_communication` does not split either, and a split launch only costs
+# cache locality and extra launches there. GPU fields split by default;
+# `overlap=true|false` overrides.
+function use_overlap(overlap, widths, ranges, fields...)
+    overlap === nothing && (overlap = any(f -> HaloArrays.is_gpuarray(f.data), fields))
+    return overlap && can_overlap(widths, ranges)
+end
+
 function hide_halo_communication_expr(args...)
     block = args[end]
     positional = collect(args[1:end-1])
     kw = findfirst(x -> x isa Expr && x.head == :(=) && x.args[1] == :boundary_width, positional)
     width = kw === nothing ? nothing : popat!(positional, kw).args[2]
+    ko = findfirst(x -> x isa Expr && x.head == :(=) && x.args[1] == :overlap, positional)
+    overlap = ko === nothing ? nothing : popat!(positional, ko).args[2]
     length(positional) >= 2 || error("expected grid, fields, and a block")
     grid, fields = positional[1], positional[2:end]
     statements = filter(x -> !(x isa LineNumberNode), block.args)
@@ -30,7 +41,7 @@ function hide_halo_communication_expr(args...)
     return esc(quote
         $widths = $width_expr
         $launch_ranges = $ranges
-        if !$(GlobalRef(@__MODULE__, :can_overlap))($widths, $launch_ranges)
+        if !$(GlobalRef(@__MODULE__, :use_overlap))($overlap, $widths, $launch_ranges, $(fields...))
             ParallelStencil.@parallel $launch_ranges $kernel
             $(boundary_updates...)
             ParallelStencil.@synchronize

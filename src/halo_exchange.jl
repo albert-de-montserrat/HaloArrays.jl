@@ -2,7 +2,7 @@ export halo_exchange_start!, halo_exchange_finish!, update_halo!, ExchangeHandle
     @hide_halo_communication
 
 """
-    @hide_halo_communication grid fields... [boundary_width=widths] begin
+    @hide_halo_communication grid fields... [boundary_width=widths] [overlap=bool] begin
         @parallel ranges kernel!(...)
         boundary_updates...
     end
@@ -27,6 +27,13 @@ parameter and does not change the numerical result. Every width must be
 positive and match the dimensionality of `ranges`. If any range length is at
 most twice its width, the macro instead launches the full kernel, executes the
 boundary updates, synchronizes, and performs a blocking `update_halo!`.
+
+The split is on by default only when a field is a GPU array. For host arrays
+the macro takes the same blocking path: ParallelStencil's own CPU
+`@hide_communication` does not split either, and splitting a CPU kernel costs
+extra launches and cache locality (about 25 % per step at `32³` per rank).
+Pass `overlap=true` to force the split on host arrays or `overlap=false` to
+disable it.
 ParallelStencil's automatic partitioner also
 requires every range to start at `1`.
 

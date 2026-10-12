@@ -7,6 +7,11 @@ exchange is pending. `boundary_width=(bx, by, bz)` specifies how many
 The widths describe a computation split; the exchanged halo thickness still
 comes from `Field.halowidths`.
 
+The split is the default for GPU arrays. On host arrays the macro runs the
+full kernel and a blocking `update_halo!` (as ParallelStencil's CPU
+`@hide_communication` does), because splitting a CPU kernel costs more than it
+saves; pass `overlap=true` to force the split.
+
 Loading `ParallelStencil` activates this optional macro. The underlying
 `halo_exchange_start!` / `halo_exchange_finish!` API also works without
 ParallelStencil; see [Halo exchange](./halo-exchange.md).
