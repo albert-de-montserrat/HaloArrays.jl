@@ -66,7 +66,8 @@ end
     grid(topology::Topology{N}, gridsize::NTuple{N,Integer};
          origin=ntuple(_->0.0,N), origin_on_vertex=false,
          centered=ntuple(_->false,N), threaded_pack=false,
-         global_size=false, halowidths=ntuple(_->1,N)) :: Grid{N}
+         gpu_aware_mpi=false, global_size=false,
+         halowidths=ntuple(_->1,N)) :: Grid{N}
 
 Construct a `Grid` from an explicit `Topology` and, by default, the local
 array size every field on this grid will share — `gridsize` means `nlocal`,
@@ -103,16 +104,27 @@ allocates, regardless of how large the copy is) for wall-clock speed on large
 transfers, which is the right trade only when you've asked for it — see
 "Performance, memory footprint, and GC-pressure goals" in REDESIGN_PLAN.md
 for the measurements behind this default.
+
+`gpu_aware_mpi=true` passes the device buffers of GPU fields (`CuArray`,
+`ROCArray`) directly to MPI instead of copying them through host memory. The
+MPI library must be built with GPU support: `grid` throws unless
+`MPI.has_cuda()` or `MPI.has_rocm()` is `true`. CPU fields
+are unaffected. If CUDA-aware transport fails with buffers from CUDA.jl's
+stream-ordered memory pool, set `JULIA_CUDA_MEMORY_POOL=none`.
 """
 function grid(topology::Topology{N}, gridsize::NTuple{N,Integer};
               origin::NTuple{N,Real} = ntuple(_ -> 0.0, N),
               origin_on_vertex::Bool = false,
               centered::NTuple{N,Bool} = ntuple(_ -> false, N),
               threaded_pack::Bool = false,
+              gpu_aware_mpi::Bool = false,
               global_size::Bool = false,
               halowidths::NTuple{N,Integer} = ntuple(_ -> 1, N)) where {N}
     nlocal = global_size ? nlocal_from_global(topology, gridsize, halowidths) : Tuple(Int.(gridsize))
     any(<(1), nlocal) && error("nlocal entries must be >= 1; got nlocal=$nlocal.")
+    gpu_aware_mpi && !(MPI.has_cuda() || MPI.has_rocm()) && error(
+        "gpu_aware_mpi=true requires an MPI library built with CUDA or ROCm support, " *
+        "but MPI.has_cuda() and MPI.has_rocm() are both false for $(MPI.identify_implementation()).")
     for d in 1:N
         if centered[d] && origin_on_vertex && isodd(nlocal[d])
             error("dimension $d: cannot center on the origin with origin_on_vertex=true " *
@@ -123,7 +135,7 @@ function grid(topology::Topology{N}, gridsize::NTuple{N,Integer};
                   "and an even nlocal[$d]=$(nlocal[d]); set origin_on_vertex=true or use an odd nlocal[$d].")
         end
     end
-    return Grid{N}(topology, nlocal, Float64.(origin), origin_on_vertex, centered, ExchangeCache(threaded_pack))
+    return Grid{N}(topology, nlocal, Float64.(origin), origin_on_vertex, centered, ExchangeCache(threaded_pack, gpu_aware_mpi))
 end
 
 function Base.show(io::IO, ::MIME"text/plain", g::Grid{N}) where {N}

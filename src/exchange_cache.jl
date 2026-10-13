@@ -28,6 +28,11 @@ footprint, and GC-pressure goals" in REDESIGN_PLAN.md), so it must never
 turn on under a caller who hasn't asked for it and expects the package's
 zero-allocation default to hold.
 
+`gpu_aware_mpi` is the opt-in flag (set at `grid` construction) for passing
+GPU device buffers directly to MPI. It requires an MPI library built with
+CUDA or ROCm support; when `false`, GPU fields stage through the host
+`sendbufs`/`recvbufs`.
+
 `gpu_cache` is an untyped (`Ref{Any}`) slot, `nothing` until a GPU extension
 (CUDA/AMDGPU) lazily constructs its own device-buffer cache struct into it on
 this grid's first GPU-array exchange — see `src/backend.jl`. The core package
@@ -41,15 +46,17 @@ mutable struct ExchangeCache
     reqs::Array{MPI.Request,3}                 # reqs[field_i, neighbor_n, phase]; phase 1=recv, 2=send
     pending::Bool
     threaded_pack::Bool
+    gpu_aware_mpi::Bool
     gpu_cache::Ref{Any}
 end
 
-ExchangeCache(threaded_pack::Bool = false) = ExchangeCache(
+ExchangeCache(threaded_pack::Bool = false, gpu_aware_mpi::Bool = false) = ExchangeCache(
     NTuple{2,Vector{UInt8}}[],
     NTuple{2,Vector{UInt8}}[],
     fill(MPI.REQUEST_NULL, 0, 2, 2),
     false,
     threaded_pack,
+    gpu_aware_mpi,
     Ref{Any}(nothing),
 )
 

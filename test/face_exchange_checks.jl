@@ -32,14 +32,14 @@ function check_faces(topo, f, dims)
         for ci in CartesianIndices(A))
 end
 
-function face_exchange_checks(to_backend, synchronize)
+function face_exchange_checks(to_backend, synchronize; gpu_aware_mpi::Bool=false)
     @testset "face source indices and untouched cells" begin
         for N in (2, 3), periods in (ntuple(_ -> false, N), ntuple(_ -> true, N),
                 ntuple(d -> isodd(d), N)),
                 dims in (ntuple(identity, N), Tuple(reverse(1:N)), (1,))
             topo = topology(ntuple(_ -> 0, N); periods)
             shape = ntuple(d -> 7 + d, N)
-            g = grid(topo, shape)
+            g = grid(topo, shape; gpu_aware_mpi)
             a = field(to_backend(face_initial(Float64, topo.rank, shape)))
             widths = ntuple(d -> d == 1 ? 2 : 1, N)
             b = field(to_backend(face_initial(Float32, topo.rank, shape)); halowidths=widths)
@@ -74,7 +74,7 @@ function face_exchange_checks(to_backend, synchronize)
     end
     @testset "face validation and shared pending guard" begin
         topo = topology((0, 0); periods=(true, true))
-        g = grid(topo, (8, 9))
+        g = grid(topo, (8, 9); gpu_aware_mpi)
         f = field(to_backend(face_initial(Float64, topo.rank, g.nlocal)))
         @test_throws ErrorException update_halo!(g, f; region=:unknown)
         @test_throws ErrorException update_halo!(g, f; region=:faces, dims=(1, 1))
@@ -84,7 +84,7 @@ function face_exchange_checks(to_backend, synchronize)
         @test_throws ErrorException update_halo!(g, f; region=:faces, dims=("1",))
         @test_throws ErrorException update_halo!(g, f, f; region=:faces)
         @test !g.excache.pending
-        narrow = grid(topo, (4, 9))
+        narrow = grid(topo, (4, 9); gpu_aware_mpi)
         wide = field(to_backend(zeros(4, 9)); halowidths=(2, 1))
         @test_throws ErrorException update_halo!(narrow, wide; region=:faces, dims=(1,))
         @test !narrow.excache.pending
@@ -101,14 +101,14 @@ function face_exchange_checks(to_backend, synchronize)
     @testset "trailing component dimensions" begin
         topo = topology((0, 0); periods=(true, true))
         shape = (8, 9, 3)
-        g = grid(topo, shape[1:2])
+        g = grid(topo, shape[1:2]; gpu_aware_mpi)
         f = field(to_backend(face_initial(Float64, topo.rank, shape)))
         update_halo!(g, f; region=:faces)
         @test check_faces(topo, f, (1, 2))
     end
     @testset "empty transverse interior" begin
         topo = topology((0, 0); periods=(true, true))
-        g = grid(topo, (8, 2))
+        g = grid(topo, (8, 2); gpu_aware_mpi)
         original = face_initial(Float64, topo.rank, g.nlocal)
         f = field(to_backend(original))
         update_halo!(g, f; dims=(1,), region=:faces)
@@ -118,7 +118,7 @@ function face_exchange_checks(to_backend, synchronize)
     if to_backend !== identity
         @testset "mixed host and device fields" begin
             topo = topology((0, 0); periods=(true, true))
-            g = grid(topo, (8, 9))
+            g = grid(topo, (8, 9); gpu_aware_mpi)
             host = field(face_initial(Float64, topo.rank, g.nlocal))
             device = field(to_backend(face_initial(Float32, topo.rank, g.nlocal)))
             update_halo!(g, host, device; region=:faces)
@@ -129,7 +129,7 @@ function face_exchange_checks(to_backend, synchronize)
     @testset "concurrent independent topologies" begin
         topo1 = topology((0, 0); periods=(true, true))
         topo2 = topology((0, 0); periods=(true, true))
-        g1, g2 = grid(topo1, (8, 9)), grid(topo2, (11, 12))
+        g1, g2 = grid(topo1, (8, 9); gpu_aware_mpi), grid(topo2, (11, 12); gpu_aware_mpi)
         f1 = field(to_backend(face_initial(Float64, topo1.rank, g1.nlocal)))
         f2 = field(to_backend(face_initial(Float32, topo2.rank, g2.nlocal)))
         h1 = halo_exchange_start!(g1, f1; region=:faces)
@@ -142,7 +142,7 @@ function face_exchange_checks(to_backend, synchronize)
     if Threads.nthreads() > 1 && to_backend === identity
         @testset "threaded face packing" begin
             topo = topology((0, 0, 0); periods=(true, true, true))
-            g = grid(topo, (5, 258, 258); threaded_pack=true)
+            g = grid(topo, (5, 258, 258); threaded_pack=true, gpu_aware_mpi)
             f = field(face_initial(Float64, topo.rank, g.nlocal))
             update_halo!(g, f; region=:faces)
             @test check_faces(topo, f, (1, 2, 3))

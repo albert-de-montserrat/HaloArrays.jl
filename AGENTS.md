@@ -38,7 +38,10 @@ real code from a same-named `src/*Ext/` directory:
   component views and reuses the normal `Field` path.
 - `HaloGridsHDF5Ext` + `src/HDF5Ext/`, `HaloGridsWriteVTKExt` + `src/WriteVTKExt/`.
 - `HaloGridsParallelStencilExt`: `@hide_halo_communication` implementation.
-- Device selection (rank-to-GPU) and CUDA/ROCm-aware MPI are out of scope.
+- Device selection (rank-to-GPU) is out of scope. GPU-aware MPI is opt-in per grid
+  (`grid(...; gpu_aware_mpi=true)`); GPU test files also run those cases when
+  `MPI.has_cuda()` is true, which requires running them against a CUDA-aware MPI
+  build rather than the default `MPICH_jll`.
 
 Other directories:
 

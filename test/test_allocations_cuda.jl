@@ -78,55 +78,57 @@ function run_gpu_allocation_tests()
     rank = MPI.Comm_rank(comm)
     nprocs = MPI.Comm_size(comm)
 
-    t = topology((0, 0); comm=comm, periods=(true, true))
-    g = grid(t, (20, 20))
-    A = CuArray(fill(Float64(rank), 20, 20))
-    B = CuArray(fill(Float32(rank), 20, 20))
-    fA = field(A; halowidths=(1, 1))
-    fB = field(B; halowidths=(2, 1))
+    for gpu_aware_mpi in (MPI.has_cuda() ? (false, true) : (false,))
+        t = topology((0, 0); comm=comm, periods=(true, true))
+        g = grid(t, (20, 20); gpu_aware_mpi)
+        A = CuArray(fill(Float64(rank), 20, 20))
+        B = CuArray(fill(Float32(rank), 20, 20))
+        fA = field(A; halowidths=(1, 1))
+        fB = field(B; halowidths=(2, 1))
 
-    # Warmup: let device buffers grow to their high-water mark and every
-    # method specialization JIT-compile before measuring.
-    for _ in 1:5
-        update_halo!(g, fA, fB)
-    end
-    CUDA.synchronize()
+        # Warmup: let device buffers grow to their high-water mark and every
+        # method specialization JIT-compile before measuring.
+        for _ in 1:5
+            update_halo!(g, fA, fB)
+        end
+        CUDA.synchronize()
 
-    niter = 200
-    total_update = @allocated for _ in 1:niter
-        update_halo!(g, fA, fB)
-    end
-    CUDA.synchronize()
-    bytes_per_update = total_update / niter
+        niter = 200
+        total_update = @allocated for _ in 1:niter
+            update_halo!(g, fA, fB)
+        end
+        CUDA.synchronize()
+        bytes_per_update = total_update / niter
 
-    total_pair = @allocated for _ in 1:niter
-        h = halo_exchange_start!(g, fA, fB)
-        halo_exchange_finish!(h)
-    end
-    CUDA.synchronize()
-    bytes_per_pair = total_pair / niter
+        total_pair = @allocated for _ in 1:niter
+            h = halo_exchange_start!(g, fA, fB)
+            halo_exchange_finish!(h)
+        end
+        CUDA.synchronize()
+        bytes_per_pair = total_pair / niter
 
-    if rank == 0
-        println("nprocs=$nprocs  update_halo! (GPU): $bytes_per_update B/call  start!+finish!: $bytes_per_pair B/call")
-    end
+        if rank == 0
+            println("nprocs=$nprocs gpu_aware_mpi=$gpu_aware_mpi  update_halo! (GPU): $bytes_per_update B/call  start!+finish!: $bytes_per_pair B/call")
+        end
 
-    @testset "GPU steady-state allocation bound (nprocs=$nprocs)" begin
-        if nprocs == 1
-            # Self-periodic only (no real MPI transport): isolates the
-            # view-caching-reduced CuArray-wrapper-construction +
-            # strided-copy floor described above. Measured a stable
-            # 14336 B/call for this 2-field/2-dim setup (down from 18176
-            # before view caching) — tighter bound than nprocs>1 since this
-            # case has no real transport noise to allow for.
-            @test bytes_per_update < 20000
-            @test bytes_per_pair < 20000
-        else
-            # Real device<->host staging + MPI Isend/Irecv/Wait transport is
-            # also in play now, and genuinely noisy run-to-run (observed
-            # 16664-29981 B/call across repeated trials on this machine) —
-            # bound loosely enough to never be flaky against that.
-            @test bytes_per_update < 40000
-            @test bytes_per_pair < 40000
+        @testset "GPU steady-state allocation bound (nprocs=$nprocs, gpu_aware_mpi=$gpu_aware_mpi)" begin
+            if nprocs == 1
+                # Self-periodic only (no real MPI transport): isolates the
+                # view-caching-reduced CuArray-wrapper-construction +
+                # strided-copy floor described above. Measured a stable
+                # 14336 B/call for this 2-field/2-dim setup (down from 18176
+                # before view caching) — tighter bound than nprocs>1 since this
+                # case has no real transport noise to allow for.
+                @test bytes_per_update < 20000
+                @test bytes_per_pair < 20000
+            else
+                # Real device<->host staging + MPI Isend/Irecv/Wait transport is
+                # also in play now, and genuinely noisy run-to-run (observed
+                # 16664-29981 B/call across repeated trials on this machine) —
+                # bound loosely enough to never be flaky against that.
+                @test bytes_per_update < 40000
+                @test bytes_per_pair < 40000
+            end
         end
     end
 

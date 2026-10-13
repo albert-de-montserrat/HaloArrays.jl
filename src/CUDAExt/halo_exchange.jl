@@ -1,5 +1,5 @@
 import HaloGrids
-import HaloGrids: ExchangeCache, sendbuf, recvbuf
+import HaloGrids: ExchangeCache, sendbuf, recvbuf, MPI
 using CUDA
 
 # pack!/unpack! (HaloGrids.jl's halo_exchange.jl) are already just
@@ -31,6 +31,7 @@ HaloGrids.unpack_source(cache::ExchangeCache, i::Integer, n::Integer, ::Type{T},
 # their growth side effect (typed_buf! resizes the raw buffer if needed); the
 # typed view each returns is otherwise unused here.
 function HaloGrids.stage_send!(cache::ExchangeCache, i::Integer, n::Integer, ::Type{T}, len::Integer, ::AnyCuArray) where {T}
+    cache.gpu_aware_mpi && return nothing
     nbytes = len * sizeof(T)
     sendbuf(cache, i, n, T, len)
     gpu_sendbuf(cache, i, n, T, len)
@@ -38,9 +39,33 @@ function HaloGrids.stage_send!(cache::ExchangeCache, i::Integer, n::Integer, ::T
     return nothing
 end
 function HaloGrids.stage_recv!(cache::ExchangeCache, i::Integer, n::Integer, ::Type{T}, len::Integer, ::AnyCuArray) where {T}
+    cache.gpu_aware_mpi && return nothing
     nbytes = len * sizeof(T)
     recvbuf(cache, i, n, T, len)
     gpu_recvbuf(cache, i, n, T, len)
     copyto!(cuda_cache!(cache).recvbufs[i][n], 1, cache.recvbufs[i][n], 1, nbytes)
+    return nothing
+end
+
+# GPU-aware MPI: MPI reads and writes the raw device byte buffers directly. Both
+# sides of a message use the same element type and length, so sending `nbytes`
+# of `UInt8` is equivalent to sending `len` elements of `T`, and the plain
+# `CuVector{UInt8}` avoids relying on MPI.jl's handling of reinterpreted views.
+function HaloGrids.mpi_sendbuf(cache::ExchangeCache, i::Integer, n::Integer, ::Type{T}, len::Integer, ::AnyCuArray) where {T}
+    cache.gpu_aware_mpi || return MPI.Buffer(sendbuf(cache, i, n, T, len))
+    gpu_sendbuf(cache, i, n, T, len)
+    return MPI.Buffer(cuda_cache!(cache).sendbufs[i][n], len * sizeof(T), MPI.Datatype(UInt8))
+end
+function HaloGrids.mpi_recvbuf(cache::ExchangeCache, i::Integer, n::Integer, ::Type{T}, len::Integer, ::AnyCuArray) where {T}
+    cache.gpu_aware_mpi || return MPI.Buffer(recvbuf(cache, i, n, T, len))
+    gpu_recvbuf(cache, i, n, T, len)
+    return MPI.Buffer(cuda_cache!(cache).recvbufs[i][n], len * sizeof(T), MPI.Datatype(UInt8))
+end
+
+# Pack kernels, and the previous dimension's unpack kernels, run asynchronously
+# on the task's stream and use the same device buffers MPI is about to access.
+function HaloGrids.prepare_mpi!(cache::ExchangeCache, ::AnyCuArray)
+    cache.gpu_aware_mpi || return nothing
+    CUDA.synchronize()
     return nothing
 end

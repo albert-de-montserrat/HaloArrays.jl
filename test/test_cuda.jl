@@ -21,6 +21,11 @@ MPI.Init()
 comm = MPI.COMM_WORLD
 rank = MPI.Comm_rank(comm)
 
+# Device buffers go straight to MPI only when the library is CUDA-aware.
+const AWARE_MODES = MPI.has_cuda() ? (false, true) : (false,)
+rank == 0 && !MPI.has_cuda() &&
+    println("test_cuda.jl: MPI is not CUDA-aware; skipping gpu_aware_mpi=true cases.")
+
 # Same analytic model as test_halo_exchange.jl's check_halo (see that file
 # for the full rationale on encoding position, not just rank, and why the
 # per-dimension source-index decomposition below is exact even at corners),
@@ -74,12 +79,12 @@ function check_halo_gpu(grid::Grid{N}, f::Field{T,N}, dims, nlocal) where {T,N}
     return ok
 end
 
-@testset "update_halo! correctness on CuArray fields (N=$N, periods=$periods)" for N in (2, 3),
-    periods in (ntuple(_ -> false, N), ntuple(_ -> true, N))
+@testset "update_halo! correctness on CuArray fields (N=$N, periods=$periods, gpu_aware_mpi=$aware)" for N in (2, 3),
+    periods in (ntuple(_ -> false, N), ntuple(_ -> true, N)), aware in AWARE_MODES
 
     topo = topology(ntuple(_ -> 0, N); comm=comm, periods=periods)
     nlocal = ntuple(_ -> 6, N)
-    g = grid(topo, nlocal)
+    g = grid(topo, nlocal; gpu_aware_mpi=aware)
 
     A = CuArray(filled_array(Float64, rank, nlocal))
     B = CuArray(filled_array(Float32, rank, nlocal))
@@ -92,12 +97,16 @@ end
 
     @test check_halo_gpu(g, fA, 1:N, nlocal)
     @test check_halo_gpu(g, fB, 1:N, nlocal)
+    # Device buffers go to MPI directly, so the host staging buffers never grow.
+    aware && @test all(b -> all(isempty, b), g.excache.sendbufs) &&
+        all(b -> all(isempty, b), g.excache.recvbufs)
 end
 
-@testset "start!/finish! matches update_halo! on CuArray fields (N=$N)" for N in (2, 3)
+@testset "start!/finish! matches update_halo! on CuArray fields (N=$N, gpu_aware_mpi=$aware)" for N in (2, 3),
+    aware in AWARE_MODES
     topo = topology(ntuple(_ -> 0, N); comm=comm, periods=ntuple(_ -> true, N))
     nlocal = ntuple(_ -> 6, N)
-    g = grid(topo, nlocal)
+    g = grid(topo, nlocal; gpu_aware_mpi=aware)
     A = CuArray(filled_array(Float64, rank, nlocal))
     fA = field(A; halowidths=ntuple(_ -> 1, N))
 
@@ -108,10 +117,10 @@ end
     @test check_halo_gpu(g, fA, 1:N, nlocal)
 end
 
-@testset "mixed CPU and GPU fields in the same call" begin
+@testset "mixed CPU and GPU fields in the same call (gpu_aware_mpi=$aware)" for aware in AWARE_MODES
     topo = topology((0, 0); comm=comm, periods=(true, true))
     nlocal = (6, 6)
-    g = grid(topo, nlocal)
+    g = grid(topo, nlocal; gpu_aware_mpi=aware)
 
     Acpu = filled_array(Float64, rank, nlocal)
     Agpu = CuArray(filled_array(Float64, rank, nlocal))

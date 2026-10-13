@@ -55,9 +55,9 @@ end
 @inline function post_face_recvs!(cache, fields::Tuple, grid_dims, dim, lo, hi, comm, i)
     f = fields[1]
     len = face_length(f, grid_dims, dim)
-    has_neighbor(lo) && (cache.reqs[i, 1, 1] = MPI.Irecv!(recvbuf(cache, i, 1, eltype(f), len),
+    has_neighbor(lo) && (cache.reqs[i, 1, 1] = MPI.Irecv!(mpi_recvbuf(cache, i, 1, eltype(f), len, f.data),
         comm; source=lo, tag=face_tag(dim, 2)))
-    has_neighbor(hi) && (cache.reqs[i, 2, 1] = MPI.Irecv!(recvbuf(cache, i, 2, eltype(f), len),
+    has_neighbor(hi) && (cache.reqs[i, 2, 1] = MPI.Irecv!(mpi_recvbuf(cache, i, 2, eltype(f), len, f.data),
         comm; source=hi, tag=face_tag(dim, 1)))
     post_face_recvs!(cache, Base.tail(fields), grid_dims, dim, lo, hi, comm, i + 1)
     return nothing
@@ -69,12 +69,12 @@ end
     len = face_length(f, grid_dims, dim)
     if has_neighbor(lo)
         stage_send!(cache, i, 1, eltype(f), len, f.data)
-        cache.reqs[i, 1, 2] = MPI.Isend(sendbuf(cache, i, 1, eltype(f), len),
+        cache.reqs[i, 1, 2] = MPI.Isend(mpi_sendbuf(cache, i, 1, eltype(f), len, f.data),
             comm; dest=lo, tag=face_tag(dim, 1))
     end
     if has_neighbor(hi)
         stage_send!(cache, i, 2, eltype(f), len, f.data)
-        cache.reqs[i, 2, 2] = MPI.Isend(sendbuf(cache, i, 2, eltype(f), len),
+        cache.reqs[i, 2, 2] = MPI.Isend(mpi_sendbuf(cache, i, 2, eltype(f), len, f.data),
             comm; dest=hi, tag=face_tag(dim, 2))
     end
     post_face_sends!(cache, Base.tail(fields), grid_dims, dim, lo, hi, comm, i + 1)
@@ -92,6 +92,7 @@ end
     if lo == rank
         copy_self_faces!(g.excache, fields, Val(N), dim, i)
     else
+        prepare_mpi_fields!(g.excache, fields)
         post_face_recvs!(g.excache, fields, Val(N), dim, lo, hi, g.topology.comm, i)
         post_face_sends!(g.excache, fields, Val(N), dim, lo, hi, g.topology.comm, i)
     end

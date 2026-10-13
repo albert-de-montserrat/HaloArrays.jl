@@ -276,3 +276,25 @@ Threaded packing is disabled by default. Opting in uses spawned tasks for large
 slabs when Julia has multiple threads (for example, `julia -t 4 --project=.`).
 The current threshold is 65,536 elements per slab. Tasks allocate, and MPI calls
 still run on the calling thread. Benchmark your workload before enabling this.
+
+## GPU fields and GPU-aware MPI
+
+`CuArray` and `ROCArray` fields are packed and unpacked on the device. By
+default the packed device buffers are copied to host memory around each MPI
+call, which works with any MPI library. With an MPI library built with CUDA or
+ROCm support, pass `gpu_aware_mpi=true` to hand the device buffers to MPI
+directly and skip the host copies:
+
+```julia
+using CUDA
+g = grid(t, (130, 130, 130); gpu_aware_mpi=true) # t must be 3D
+```
+
+`grid` throws if `MPI.has_cuda()` and `MPI.has_rocm()` are both `false`. CPU
+fields on such a grid are unaffected. Before MPI accesses the device buffers,
+each exchanged dimension synchronizes the task's GPU stream so that the pack
+kernels, and the previous dimension's unpack kernels, have finished. The
+application still selects each rank's device. If CUDA-aware transport fails
+with buffers from CUDA.jl's memory pool, set `JULIA_CUDA_MEMORY_POOL=none`.
+The CUDA path is tested with Open MPI 5 and UCX, with several ranks sharing one
+GPU; the ROCm path is untested.
