@@ -43,14 +43,22 @@ end
 
 using JLD2
 
-function save_result(path, pkg, nprocs, N, niter, stats, gpu_bytes, teff, peakbw)
+# `stats.time` is reduced with MPI.MAX by the workers, so throughput and time
+# per step reflect the slowest rank's elapsed time. Allocation/GC data remain
+# rank 0's local Julia metrics.
+function save_result(path, pkg, nprocs, N, niter, stats, gpu_bytes, teff, peakbw;
+                     transport="unspecified")
     gs = stats.gcstats
     pct = peakbw > 0 ? 100 * teff / peakbw : NaN
-    result = (; pkg=String(pkg), nprocs, N, niter, time_s=stats.time,
+    run_id = string(time_ns())
+    result = (; run_id, pkg=String(pkg), transport=String(transport), nprocs, N, niter,
+        time_s=stats.time, time_per_iter_s=stats.time / niter,
         bytes=stats.bytes, gctime_s=stats.gctime, pauses=gs.pause,
-        full_sweep=gs.full_sweep, gpu_bytes, t_eff_gbs=teff,
+        full_sweep=gs.full_sweep, gpu_bytes,
+        host_bytes_per_iter=stats.bytes / niter,
+        device_bytes_per_iter=gpu_bytes / niter, t_eff_gbs=teff,
         peak_bw_gbs=peakbw, pct_of_peak=pct)
-    key = "result__$(pkg)__n$(nprocs)__N$(N)"
+    key = "result__$(pkg)__n$(nprocs)__N$(N)__iter$(niter)__run$(run_id)"
     jldopen(path, "a+") do file
         file[key] = result
     end

@@ -63,9 +63,10 @@ buffers (it is generic over `AbstractVector{UInt8}` for exactly this reason).
 see `ViewCache` above.
 
 Never holds an MPI request or touches MPI directly — `ExchangeCache.reqs`
-remains the only request array regardless of a field's array type, since MPI
-only ever sends/receives the host `sendbuf`/`recvbuf` (see `stage_send!`/
-`stage_recv!` in halo_exchange.jl).
+remains the only request array regardless of a field's array type. The CUDA
+halo exchange extension can pass these raw device buffers directly to an MPI
+runtime that reports CUDA-buffer support; otherwise it stages through the
+host `sendbuf`/`recvbuf` buffers.
 """
 mutable struct CUDACache
     sendbufs::Vector{NTuple{2,CuVector{UInt8}}}

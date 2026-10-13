@@ -7,12 +7,10 @@
 #   responsibility (call `CUDA.device!(...)` before building arrays), same as
 #   Topology/Grid already don't manage any other MPI-rank-to-resource
 #   assignment.
-# - CUDA-aware (GPU-direct) MPI transport: `stage_send!`/`stage_recv!` in
-#   src/CUDAExt/halo_exchange.jl are the seam where that would plug in (make
-#   them no-ops and let post_isend!/post_irecv! send/recv the device buffer
-#   directly), but it isn't implemented here since Microsoft MPI (this
-#   project's only local MPI) isn't CUDA-aware and the path can't be validated
-#   without one.
+# - CUDA-aware MPI availability: the extension uses MPI.jl's `MPI.has_cuda()`
+#   to choose direct device buffers or the host-staging fallback. MPI
+#   implementations without automatic detection can set
+#   `JULIA_MPI_HAS_CUDA=true` when their CUDA-aware support is configured.
 module HaloArraysCUDAExt
     include(joinpath(@__DIR__, "..", "src", "CUDAExt", "shared.jl"))
     include(joinpath(@__DIR__, "..", "src", "CUDAExt", "halo_exchange.jl"))

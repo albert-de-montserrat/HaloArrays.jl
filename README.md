@@ -115,9 +115,12 @@ Extensions activate when their corresponding packages are loaded:
 | HDF5 | Saving and loading distributed fields in a shared HDF5 file |
 | WriteVTK | Saving distributed fields as parallel ParaView (pvtk) files |
 
-GPU packing and unpacking use device buffers, with host staging around MPI
-transport. The application selects each rank's device; CUDA/ROCm-aware MPI
-transport is outside the current implementation. HDF5 I/O uses ranks in turn
+GPU packing and unpacking use device buffers. CUDA halo exchange passes those
+buffers directly to MPI when `MPI.has_cuda()` reports CUDA-buffer support, and
+falls back to host staging otherwise. For MPI implementations MPI.jl cannot
+detect automatically, set `JULIA_MPI_HAS_CUDA=true` only when the configured
+MPI runtime supports CUDA buffers. The application selects each rank's device.
+AMDGPU-aware MPI transport is not implemented. HDF5 I/O uses ranks in turn
 and does not require a parallel-HDF5 build. Parallel VTK I/O is write-only
 (no `load_pvtk!`); every rank writes its own independent file, so unlike
 HDF5 it needs no shared-file write coordination.
