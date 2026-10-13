@@ -13,29 +13,24 @@ is_rocarray(::AbstractArray) = false
 is_gpuarray(A::AbstractArray) = is_cuarray(A) || is_rocarray(A)
 
 """
-GPU dispatch seam for pack/unpack and MPI-transport staging, resolved by array
+GPU dispatch seam for pack/unpack and MPI transport, resolved by array
 type exactly like `is_cuarray`/`is_rocarray` above — a GPU extension adds
 methods for `AnyCuArray`/`AnyROCArray` and nothing else needs to change at the
 call sites in `halo_exchange.jl`.
 
-For a plain CPU `AbstractArray`, `pack_target`/`unpack_source` are literally
-`sendbuf`/`recvbuf` (the same host buffer packing has always used) and
-`stage_send!`/`stage_recv!` are no-ops, so these four defaults reproduce
-today's CPU behavior exactly, at zero extra runtime cost once specialized per
-concrete array type.
+For a plain CPU `AbstractArray`, `pack_target`/`unpack_source` and
+`mpi_sendbuf`/`mpi_recvbuf` use the host buffers and `stage_send!`/`stage_recv!`
+are no-ops, so these defaults reproduce today's CPU behavior exactly, at zero
+extra runtime cost once specialized per concrete array type.
 
 For a GPU array, a device-resident buffer pool (owned by the grid's
-`ExchangeCache.gpu_cache`, never module-global) is the actual pack/unpack
-target/source — `pack!`/`unpack!` (halo_exchange.jl) then run entirely on
-device via `copyto!`/`view`, unmodified, since GPUArrays.jl already gives
-device arrays a generic strided `copyto!`. `stage_send!`/`stage_recv!` are the
-plain contiguous device<->host copies that bridge that device buffer to the
-host `sendbuf`/`recvbuf` MPI actually sends/receives from: MPI transport
-itself never becomes GPU-aware, only pack/unpack does. This split is also the
-documented seam for a future CUDA-aware-MPI path (make `stage_send!`/
-`stage_recv!` no-ops and let `post_isend!`/`post_irecv!` operate on the device
-buffer directly) — not implemented here since it requires a CUDA-aware MPI
-build to validate, which this project's local Microsoft MPI is not.
+`ExchangeCache.gpu_cache`, never module-global) is the pack/unpack target and
+source — `pack!`/`unpack!` then run on device via `copyto!`/`view`. Backend
+methods `mpi_sendbuf`/`mpi_recvbuf` select the transport buffers. They default
+to host buffers; a GPU extension can select device buffers when its MPI
+implementation reports GPU-buffer support. `stage_send!`/`stage_recv!` bridge
+device and host buffers when that support is unavailable, and are no-ops for
+direct device-buffer transport.
 """
 pack_target(cache, i::Integer, n::Integer, ::Type{T}, len::Integer, ::AbstractArray) where {T} =
     sendbuf(cache, i, n, T, len)
@@ -43,3 +38,5 @@ unpack_source(cache, i::Integer, n::Integer, ::Type{T}, len::Integer, ::Abstract
     recvbuf(cache, i, n, T, len)
 stage_send!(cache, i::Integer, n::Integer, ::Type{T}, len::Integer, ::AbstractArray) where {T} = nothing
 stage_recv!(cache, i::Integer, n::Integer, ::Type{T}, len::Integer, ::AbstractArray) where {T} = nothing
+mpi_sendbuf(cache, i::Integer, n::Integer, ::Type{T}, len::Integer, A::AbstractArray) where {T} = sendbuf(cache, i, n, T, len)
+mpi_recvbuf(cache, i::Integer, n::Integer, ::Type{T}, len::Integer, A::AbstractArray) where {T} = recvbuf(cache, i, n, T, len)

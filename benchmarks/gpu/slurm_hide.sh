@@ -18,6 +18,7 @@ cd "$(dirname "$0")"
 
 export MPICH_GPU_SUPPORT_ENABLED=1
 export IGG_CUDAAWARE_MPI=1
+export JULIA_MPI_HAS_CUDA=true
 export JULIA_CUDA_USE_COMPAT=false
 UENV="julia/25.5:v1"
 

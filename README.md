@@ -94,7 +94,8 @@ Loading ParallelStencil enables `@hide_halo_communication`, which computes
 outer kernel slabs before exchange and an inner box while communication is
 pending. `boundary_width=(bx, by, bz)` gives the computation thickness at
 **each side** of each dimension. It leaves `Field.halowidths` and message sizes
-unchanged. Small launch ranges use a full-kernel, blocking-exchange fallback.
+unchanged. Small launch ranges, and host (CPU) arrays by default, use a full-kernel,
+blocking-exchange path; pass `overlap=true` to force the split on the CPU.
 See [hiding communication and boundary widths](docs/src/guide/hide-communication.md)
 for sketches, safe kernel patterns, and worked `32³`/`64³` examples.
 
@@ -114,9 +115,12 @@ Extensions activate when their corresponding packages are loaded:
 | HDF5 | Saving and loading distributed fields in a shared HDF5 file |
 | WriteVTK | Saving distributed fields as parallel ParaView (pvtk) files |
 
-GPU packing and unpacking use device buffers, with host staging around MPI
-transport. The application selects each rank's device; CUDA/ROCm-aware MPI
-transport is outside the current implementation. HDF5 I/O uses ranks in turn
+GPU packing and unpacking use device buffers. CUDA halo exchange passes those
+buffers directly to MPI when `MPI.has_cuda()` reports CUDA-buffer support, and
+falls back to host staging otherwise. For MPI implementations MPI.jl cannot
+detect automatically, set `JULIA_MPI_HAS_CUDA=true` only when the configured
+MPI runtime supports CUDA buffers. The application selects each rank's device.
+AMDGPU-aware MPI transport is not implemented. HDF5 I/O uses ranks in turn
 and does not require a parallel-HDF5 build. Parallel VTK I/O is write-only
 (no `load_pvtk!`); every rank writes its own independent file, so unlike
 HDF5 it needs no shared-file write coordination.

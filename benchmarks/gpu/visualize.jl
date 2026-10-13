@@ -74,19 +74,16 @@ end
 function write_summary(all_results::Dict{String,Vector{<:NamedTuple}}, outpath::AbstractString)
     open(outpath, "w") do io
         println(io, "# HaloArrays.jl vs ImplicitGlobalGrid.jl — GPU blocking/overlap benchmark summary\n")
-        println(io, "**Read this before comparing raw numbers:** `IGG_CUDAAWARE_MPI=1` is set for these")
-        println(io, "runs (see slurm_*.sh) — ImplicitGlobalGrid gets real GPU-direct MPI transport on")
-        println(io, "this cluster, while HaloArrays.jl's CUDA extension always stages through host")
-        println(io, "memory (a documented scope gap, not a bug — see HaloArrays.jl/REDESIGN_PLAN.md).")
-        println(io, "This is a real, deliberate asymmetry in the numbers below, not a fairness bug.\n")
+        println(io, "**Transport:** each worker records the MPI buffer path used for its run.")
+        println(io, "CUDA-aware MPI requires a CUDA-capable MPI runtime and correct site configuration.\n")
         for (tag, rows) in sort(collect(all_results); by=first)
             isempty(rows) && continue
             println(io, "## $tag\n")
-            println(io, "| pkg | nprocs | N | time/step (ms) | T_eff (GB/s) | % of peak | GC time/step (ms) | device B/call |")
-            println(io, "|---|---|---|---|---|---|---|---|")
+            println(io, "| pkg | transport | nprocs | N | time/step (ms) | T_eff (GB/s) | % of peak | GC time/step (ms) | device B/call |")
+            println(io, "|---|---|---:|---:|---:|---:|---:|---:|---:|")
             for r in sort(rows; by=r -> (r.pkg, r.nprocs, r.N))
-                @printf(io, "| %s | %d | %d | %.4f | %.2f | %.1f%% | %.4f | %.0f |\n",
-                    r.pkg, r.nprocs, r.N, 1e3 * r.time_s / r.niter, r.t_eff_gbs, r.pct_of_peak,
+                @printf(io, "| %s | %s | %d | %d | %.4f | %.2f | %.1f%% | %.4f | %.0f |\n",
+                    r.pkg, r.transport, r.nprocs, r.N, 1e3 * r.time_s / r.niter, r.t_eff_gbs, r.pct_of_peak,
                     1e3 * r.gctime_s / r.niter, r.gpu_bytes / r.niter)
             end
             println(io)

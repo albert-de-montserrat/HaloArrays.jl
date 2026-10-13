@@ -2,7 +2,7 @@ export halo_exchange_start!, halo_exchange_finish!, update_halo!, ExchangeHandle
     @hide_halo_communication
 
 """
-    @hide_halo_communication grid fields... [boundary_width=widths] begin
+    @hide_halo_communication grid fields... [boundary_width=widths] [overlap=bool] begin
         @parallel ranges kernel!(...)
         boundary_updates...
     end
@@ -27,6 +27,13 @@ parameter and does not change the numerical result. Every width must be
 positive and match the dimensionality of `ranges`. If any range length is at
 most twice its width, the macro instead launches the full kernel, executes the
 boundary updates, synchronizes, and performs a blocking `update_halo!`.
+
+The split is on by default only when a field is a GPU array. For host arrays
+the macro takes the same blocking path: ParallelStencil's own CPU
+`@hide_communication` does not split either, and splitting a CPU kernel costs
+extra launches and cache locality (about 25 % per step at `32³` per rank).
+Pass `overlap=true` to force the split on host arrays or `overlap=false` to
+disable it.
 ParallelStencil's automatic partitioner also
 requires every range to start at `1`.
 
@@ -238,9 +245,9 @@ end
     f = fields[1]
     len = halo_length(f, dim)
     # My low halo (slot 1) is filled by my lo-neighbor's *high*-direction send.
-    has_neighbor(lo) && (cache.reqs[i, 1, 1] = MPI.Irecv!(recvbuf(cache, i, 1, eltype(f), len), comm; source=lo, tag=EXCHANGE_TAG_HI))
+    has_neighbor(lo) && (cache.reqs[i, 1, 1] = MPI.Irecv!(mpi_recvbuf(cache, i, 1, eltype(f), len, f.data), comm; source=lo, tag=EXCHANGE_TAG_HI))
     # My high halo (slot 2) is filled by my hi-neighbor's *low*-direction send.
-    has_neighbor(hi) && (cache.reqs[i, 2, 1] = MPI.Irecv!(recvbuf(cache, i, 2, eltype(f), len), comm; source=hi, tag=EXCHANGE_TAG_LO))
+    has_neighbor(hi) && (cache.reqs[i, 2, 1] = MPI.Irecv!(mpi_recvbuf(cache, i, 2, eltype(f), len, f.data), comm; source=hi, tag=EXCHANGE_TAG_LO))
     post_irecv!(cache, Base.tail(fields), dim, lo, hi, comm, i + 1)
     return nothing
 end
@@ -249,18 +256,17 @@ end
 @inline function post_isend!(cache, fields::Tuple, dim, lo, hi, comm, i)
     f = fields[1]
     len = halo_length(f, dim)
-    # MPI always sends from the host sendbuf; stage_send! is a no-op for CPU
-    # fields (pack_target already wrote there) and a device->host copy for GPU
-    # fields (pack_target wrote to a device buffer instead) — see backend.jl.
+    # stage_send! performs any backend-required transfer before MPI reads the
+    # packed data. mpi_sendbuf selects the host or device transport buffer.
     # Slot 1 = my own low-side strip, heading to my lo-neighbor: a low-direction send.
     if has_neighbor(lo)
         stage_send!(cache, i, 1, eltype(f), len, f.data)
-        cache.reqs[i, 1, 2] = MPI.Isend(sendbuf(cache, i, 1, eltype(f), len), comm; dest=lo, tag=EXCHANGE_TAG_LO)
+        cache.reqs[i, 1, 2] = MPI.Isend(mpi_sendbuf(cache, i, 1, eltype(f), len, f.data), comm; dest=lo, tag=EXCHANGE_TAG_LO)
     end
     # Slot 2 = my own high-side strip, heading to my hi-neighbor: a high-direction send.
     if has_neighbor(hi)
         stage_send!(cache, i, 2, eltype(f), len, f.data)
-        cache.reqs[i, 2, 2] = MPI.Isend(sendbuf(cache, i, 2, eltype(f), len), comm; dest=hi, tag=EXCHANGE_TAG_HI)
+        cache.reqs[i, 2, 2] = MPI.Isend(mpi_sendbuf(cache, i, 2, eltype(f), len, f.data), comm; dest=hi, tag=EXCHANGE_TAG_HI)
     end
     post_isend!(cache, Base.tail(fields), dim, lo, hi, comm, i + 1)
     return nothing
@@ -323,9 +329,8 @@ unpack_dim!(g::Grid, fields::Tuple, dim::Integer) = (unpack_dim_r!(g.excache, fi
 @inline function wait_recvs_and_unpack_r!(cache, fields::Tuple, dim, lo, hi, i)
     f = fields[1]
     len = halo_length(f, dim)
-    # MPI always receives into the host recvbuf; stage_recv! is a no-op for CPU
-    # fields (unpack_source is already that buffer) and a host->device copy for
-    # GPU fields (unpack_source is a separate device buffer) — see backend.jl.
+    # stage_recv! makes received data visible to the backend's unpack source;
+    # it copies from host only when MPI received into the host buffer.
     if has_neighbor(lo)
         MPI.Wait(cache.reqs[i, 1, 1])
         stage_recv!(cache, i, 1, eltype(f), len, f.data)

@@ -7,12 +7,9 @@
 # #SBATCH directives and env vars mirror this workspace's own CI convention
 # for this cluster (see JustRelax.jl/ci/cscs-gh200.yml, JustPIC.jl/ci/cscs-gh200.yml):
 # a CSCS Alps GH200 system, `--uenv julia/25.5:v1 --view=juliaup`, Cray MPICH
-# GTL GPU support, IGG's CUDA-aware-MPI env var. That env var is deliberately
-# left ON: ImplicitGlobalGrid gets real GPU-direct MPI transport on this
-# cluster while HaloArrays.jl's CUDA extension always stages through host
-# memory (documented scope gap, not a bug — see HaloArrays.jl/REDESIGN_PLAN.md).
-# This is a real, expected asymmetry in the results below, not neutralized —
-# see visualize.jl's summary output, which flags it explicitly.
+# GTL GPU support and CUDA-aware-MPI settings. Both workers can pass GPU
+# buffers directly to MPI when the system runtime supports it; the
+# JULIA_MPI_HAS_CUDA override informs MPI.jl about Cray MPICH's CUDA support.
 #
 # Adjust #SBATCH resources and the matrix arrays below for your allocation;
 # defaults assume a single GH200 quad-GPU node.
@@ -28,6 +25,7 @@ cd "$(dirname "$0")"
 
 export MPICH_GPU_SUPPORT_ENABLED=1
 export IGG_CUDAAWARE_MPI=1          # ImplicitGlobalGrid: real GPU-direct MPI transport on this cluster
+export JULIA_MPI_HAS_CUDA=true      # MPI.jl: Cray MPICH accepts CUDA buffers on this cluster
 export JULIA_CUDA_USE_COMPAT=false  # ImplicitGlobalGrid's own convention (see cscs-gh200.yml)
 UENV="julia/25.5:v1"
 

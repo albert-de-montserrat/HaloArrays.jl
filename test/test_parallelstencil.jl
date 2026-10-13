@@ -33,7 +33,7 @@ function run_tests()
                 @parallel ranges increment_owned!(B)
                 @synchronize
                 update_halo!(g, reference)
-                @hide_halo_communication g f boundary_width=(b, b) begin
+                @hide_halo_communication g f boundary_width=(b, b) overlap=true begin
                     @parallel ranges increment_owned!(A)
                 end
                 @synchronize
@@ -73,7 +73,7 @@ MPI.Init()
             B[1, :, :] .= -7
             @synchronize
             update_halo!(g, reference)
-            @hide_halo_communication g f boundary_width=widths begin
+            @hide_halo_communication g f boundary_width=widths overlap=true begin
                 @parallel ranges increment_owned!(A)
                 A[1, :, :] .= -7
                 boundary_calls[] += 1

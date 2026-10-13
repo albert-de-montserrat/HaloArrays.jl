@@ -35,7 +35,7 @@ function main()
 
     # Compute output boundaries first, then exchange output while computing
     # its inner region. A is a separate, already exchanged input array.
-    @hide_halo_communication g output boundary_width=(b, b) begin
+    @hide_halo_communication g output boundary_width=(b, b) overlap=true begin
         @parallel ranges jacobi_step!(B, A)
     end
     @synchronize

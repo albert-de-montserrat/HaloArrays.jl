@@ -2,6 +2,17 @@
 
 ## Blocking updates
 
+### CUDA-aware MPI
+
+For CUDA fields, HaloArrays passes packed device buffers directly to MPI when
+`MPI.has_cuda()` reports CUDA-buffer support. MPI.jl detects CUDA support for
+some MPI implementations; for others, `JULIA_MPI_HAS_CUDA=true` can declare
+that the configured MPI runtime accepts CUDA buffers. Set that override only
+when the system MPI library and its GPU transport are configured for CUDA.
+When CUDA-aware MPI is unavailable, HaloArrays stages packed buffers through
+host memory. The application remains responsible for selecting the GPU
+assigned to each rank. ROCm-aware MPI is not implemented.
+
 ```julia
 update_halo!(g, f)
 update_halo!(g, temperature, pressure)
