@@ -1,6 +1,6 @@
 push!(LOAD_PATH, joinpath(@__DIR__, "..", "src"))
 using Test
-using HaloArrays
+using HaloGrids
 
 @testset "field validation" begin
     A = zeros(6, 6)

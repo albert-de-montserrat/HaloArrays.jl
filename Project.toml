@@ -1,4 +1,4 @@
-name = "HaloArrays"
+name = "HaloGrids"
 uuid = "8e9f1a5b-1c2d-4a3e-9f6b-2d7c8e4a9b1f"
 version = "0.1.0"
 authors = ["Albert de Montserrat"]
@@ -16,12 +16,12 @@ ParallelStencil = "94395366-693c-11ea-3b26-d9b7aac5d958"
 WriteVTK = "64499a7a-5c06-52f2-abe2-ccb03c286192"
 
 [extensions]
-HaloArraysAMDGPUExt = "AMDGPU"
-HaloArraysCUDAExt = "CUDA"
-HaloArraysCellArraysExt = "CellArrays"
-HaloArraysHDF5Ext = "HDF5"
-HaloArraysParallelStencilExt = "ParallelStencil"
-HaloArraysWriteVTKExt = "WriteVTK"
+HaloGridsAMDGPUExt = "AMDGPU"
+HaloGridsCUDAExt = "CUDA"
+HaloGridsCellArraysExt = "CellArrays"
+HaloGridsHDF5Ext = "HDF5"
+HaloGridsParallelStencilExt = "ParallelStencil"
+HaloGridsWriteVTKExt = "WriteVTK"
 
 [compat]
 AMDGPU = "0.6, 0.7, 0.8, 0.9, 1, 2"

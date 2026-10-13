@@ -1,13 +1,13 @@
-# Per-process "hide communication" benchmark worker for HaloArrays.jl, run
+# Per-process "hide communication" benchmark worker for HaloGrids.jl, run
 # under `mpiexec` by run_comparison_hide.sh. Prints exactly one CSV line on
 # rank 0:
-#   RESULT,HaloArrays,<nprocs>,<N>,<niter>,<time_s>,<bytes>,<gctime_s>,<pauses>,<full_sweep>
+#   RESULT,HaloGrids,<nprocs>,<N>,<niter>,<time_s>,<bytes>,<gctime_s>,<pauses>,<full_sweep>
 #
 # Workload: one explicit 3D 7-point-Laplacian diffusion step on field A (with
 # field B exchanged alongside it purely to match bench_igg_hide.jl's
-# communication volume, same as bench_haloarrays.jl/bench_igg.jl do for the
+# communication volume, same as bench_halogrids.jl/bench_igg.jl do for the
 # plain-blocking comparison). Unlike the plain comparison, this measures the
-# *overlapped* pattern documented in HaloArrays.jl/docs/guide/halo-exchange.md
+# *overlapped* pattern documented in HaloGrids.jl/docs/guide/halo-exchange.md
 # and examples/hide_communication.jl: halo_exchange_start! leaves only the
 # last dimension (3) outstanding, so every (i,j,k) whose stencil neighbors
 # avoid the still-in-flight dimension-3 halo planes (k=1 and k=N) is computed
@@ -16,7 +16,7 @@
 import Pkg
 Pkg.activate(joinpath(@__DIR__, ".."); io=devnull)
 import MPI
-using HaloArrays
+using HaloGrids
 
 @inline function laplacian(A, i, j, k)
     @inbounds A[i-1, j, k] + A[i+1, j, k] + A[i, j-1, k] + A[i, j+1, k] + A[i, j, k-1] + A[i, j, k+1] - 6 * A[i, j, k]
@@ -90,7 +90,7 @@ function main()
 
     if rank == 0
         gs = stats.gcstats
-        println("RESULT,HaloArrays,$nprocs,$N,$niter,$(stats.time),$(stats.bytes),$(stats.gctime),$(gs.pause),$(gs.full_sweep)")
+        println("RESULT,HaloGrids,$nprocs,$N,$niter,$(stats.time),$(stats.bytes),$(stats.gctime),$(gs.pause),$(gs.full_sweep)")
     end
     MPI.Barrier(comm)
     MPI.Finalize()

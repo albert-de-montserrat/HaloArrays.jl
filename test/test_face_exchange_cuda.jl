@@ -1,4 +1,4 @@
-using Test, MPI, CUDA, HaloArrays
+using Test, MPI, CUDA, HaloGrids
 include("face_exchange_checks.jl")
 
 if !CUDA.functional()

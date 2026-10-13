@@ -18,7 +18,7 @@ t_eff_gbs(n_reads::Integer, n_writes::Integer, numel::Integer, elemsize::Integer
 # memory bandwidth directly, so "% of peak" in the results is grounded in an
 # actual measurement on the hardware the benchmark ran on, not a datasheet
 # figure — matches this project's "measured, don't guess" rule (see
-# HaloArrays.jl/REDESIGN_PLAN.md), and mirrors gpu/metrics_common.jl's
+# HaloGrids.jl/REDESIGN_PLAN.md), and mirrors gpu/metrics_common.jl's
 # device-to-device probe with the same methodology. Buffer is ~1 GiB of
 # Float64, well past any CPU's last-level cache, so the copy is genuinely
 # memory-bound regardless of how small the actual problem size under test is.

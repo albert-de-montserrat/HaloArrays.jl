@@ -1,5 +1,5 @@
 # Correctness tests for the AMDGPU extension (src/AMDGPUExt/,
-# ext/HaloArraysAMDGPUExt.jl). Mirrors test_cuda.jl exactly, with ROCArray in
+# ext/HaloGridsAMDGPUExt.jl). Mirrors test_cuda.jl exactly, with ROCArray in
 # place of CuArray.
 #
 # No AMD GPU is available on this development machine (see REDESIGN_PLAN.md),
@@ -16,7 +16,7 @@ if !AMDGPU.functional()
     exit(0)
 end
 
-using HaloArrays
+using HaloGrids
 
 MPI.Init()
 comm = MPI.COMM_WORLD

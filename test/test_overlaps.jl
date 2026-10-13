@@ -11,7 +11,7 @@
 push!(LOAD_PATH, joinpath(@__DIR__, "..", "src"))
 using Test
 import MPI
-using HaloArrays
+using HaloGrids
 
 MPI.Init()
 comm = MPI.COMM_WORLD

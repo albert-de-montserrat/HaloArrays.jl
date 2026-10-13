@@ -1,5 +1,5 @@
 pkg,nprocs,N,niter,time_s,bytes,gctime_s,pauses,full_sweep
-HaloArrays,1,64,20000,2.7011324,0,0.0,0,0
+HaloGrids,1,64,20000,2.7011324,0,0.0,0,0
 ImplicitGlobalGrid,1,64,20000,3.3200757,621760000,0.0455755,11,0
-HaloArrays,4,64,20000,5.4333249,35840000,0.0,0,0
+HaloGrids,4,64,20000,5.4333249,35840000,0.0,0,0
 ImplicitGlobalGrid,4,64,20000,6.6736083,660800000,0.0612853,8,0

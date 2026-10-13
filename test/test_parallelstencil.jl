@@ -1,6 +1,6 @@
 using Test
 using MPI
-using HaloArrays
+using HaloGrids
 using ParallelStencil
 @init_parallel_stencil(Threads, Float64, 3)
 
@@ -12,7 +12,7 @@ end
 # ParallelStencil keeps initialization per module, so exercise its 2D backend
 # separately from the 3D kernels above.
 module TwoDimensionalTests
-using Test, MPI, HaloArrays, ParallelStencil
+using Test, MPI, HaloGrids, ParallelStencil
 @init_parallel_stencil(Threads, Float64, 2)
 
 @parallel_indices (i, j) function increment_owned!(A)
@@ -56,7 +56,7 @@ end
 MPI.Init()
 @testset "ParallelStencil overlap and blocking fallback" begin
     t = topology((0, 0, 0); periods=(true, true, true))
-    ext = Base.get_extension(HaloArrays, :HaloArraysParallelStencilExt)
+    ext = Base.get_extension(HaloGrids, :HaloGridsParallelStencilExt)
     @test_throws ArgumentError ext.can_overlap((0, 1, 1), (1:4, 1:4, 1:4))
     @test_throws ArgumentError ext.can_overlap((1, 1), (1:4, 1:4, 1:4))
     @test_throws ArgumentError ext.can_overlap((1, 1, 1), (2:5, 1:4, 1:4))

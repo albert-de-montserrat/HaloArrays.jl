@@ -1,4 +1,4 @@
-# Shared HDF5/MPI extension helpers for HaloArrays.
+# Shared HDF5/MPI extension helpers for HaloGrids.
 #
 # Geometry note: a Field's local array already includes its own halo padding
 # (size(field.data) == grid.nlocal exactly, see grid.jl/coordinates.jl), and
@@ -10,7 +10,7 @@
 # both non-redundant (not a copy of a neighbor's data) and complete (every
 # genuine domain cell is owned by exactly one rank).
 
-using HaloArrays
+using HaloGrids
 import HDF5
 import MPI
 
@@ -21,7 +21,7 @@ const HDF5_IO_DEFAULT_GROUP = "/"
 
 Raised for save_hdf5/load_hdf5! usage and schema problems specific to this
 extension (as opposed to a plain `error(...)` from validation shared with the
-rest of the package, e.g. `HaloArrays.check_fields`).
+rest of the package, e.g. `HaloGrids.check_fields`).
 """
 struct HDF5IOError <: Exception
     msg::String
@@ -41,7 +41,7 @@ array types (`CuArray`, `ROCArray`) deliberately do not subtype
 and dependency-free without importing CUDA/AMDGPU here. Stage a device field
 to the host first, e.g. `field(Array(f.data); halowidths=f.halowidths)`.
 """
-function require_cpu_array(field::HaloArrays.Field, position::Integer)
+function require_cpu_array(field::HaloGrids.Field, position::Integer)
     field.data isa StridedArray || throw(HDF5IOError(
         "field at position $position wraps a $(typeof(field.data)), which is not a CPU " *
         "StridedArray; HDF5 I/O only ever touches host memory. Stage a device array to " *
@@ -57,14 +57,14 @@ indexing), of the cells this rank owns and that `save_hdf5`/`load_hdf5!`
 read or write — i.e. `field.data`'s full extent in that dimension, minus
 `field.halowidths[dim]` on whichever side(s) have a real neighbor.
 """
-function local_interior_range(grid::HaloArrays.Grid, field::HaloArrays.Field, dim::Integer)
+function local_interior_range(grid::HaloGrids.Grid, field::HaloGrids.Field, dim::Integer)
     hw = field.halowidths[dim]
     field.overlaps[dim] == 2hw || error(
         "save_hdf5/load_hdf5! only support fields with the default overlaps " *
         "(2*halowidths); got overlaps=$(field.overlaps), halowidths=$(field.halowidths).")
     lo_neighbor, hi_neighbor = grid.topology.neighbors[dim]
-    lo_trim = HaloArrays.has_neighbor(lo_neighbor) ? hw : 0
-    hi_trim = HaloArrays.has_neighbor(hi_neighbor) ? hw : 0
+    lo_trim = HaloGrids.has_neighbor(lo_neighbor) ? hw : 0
+    hi_trim = HaloGrids.has_neighbor(hi_neighbor) ? hw : 0
     nlocal_d = grid.nlocal[dim]
     return (1 + lo_trim):(nlocal_d - hi_trim)
 end
@@ -80,10 +80,10 @@ re-deriving the rank-offset arithmetic) to place the block, so this stays
 consistent with the rest of the package's coordinate accounting by
 construction.
 """
-function local_and_global_ranges(grid::HaloArrays.Grid{N}, field::HaloArrays.Field{T,N}) where {T,N}
+function local_and_global_ranges(grid::HaloGrids.Grid{N}, field::HaloGrids.Field{T,N}) where {T,N}
     local_ranges = ntuple(d -> local_interior_range(grid, field, d), N)
     global_ranges = ntuple(N) do d
-        start = HaloArrays.iglobal(grid, field, d, first(local_ranges[d]); wrap_periodic = false)
+        start = HaloGrids.iglobal(grid, field, d, first(local_ranges[d]); wrap_periodic = false)
         start:(start + length(local_ranges[d]) - 1)
     end
     return local_ranges, global_ranges

@@ -1,4 +1,4 @@
-using Test, MPI, AMDGPU, HaloArrays
+using Test, MPI, AMDGPU, HaloGrids
 include("face_exchange_checks.jl")
 
 if !AMDGPU.functional()

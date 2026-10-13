@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Drives bench_haloarrays_hide.jl / bench_igg_hide.jl across a {nprocs} x {N}
+# Drives bench_halogrids_hide.jl / bench_igg_hide.jl across a {nprocs} x {N}
 # matrix and collects their single-line CSV output into results_hide.csv.
 #
 # Both workers run one 3D 7-point-Laplacian diffusion step per iteration on a
 # fully periodic domain with 2x Float64 fields and halo width 1 (same domain
-# as run_comparison.sh's plain-blocking comparison), but HaloArrays.jl's
+# as run_comparison.sh's plain-blocking comparison), but HaloGrids.jl's
 # worker overlaps the interior compute with dimension 3's in-flight exchange
 # (halo_exchange_start!/finish!) while ImplicitGlobalGrid.jl's worker can only
 # run the two serially (update_halo! has no start!/finish! split) — see the
@@ -27,7 +27,7 @@ echo "pkg,nprocs,N,niter,time_s,bytes,gctime_s,pauses,full_sweep" > "$OUT"
 
 for n in "${NPROCS_MATRIX[@]}"; do
   for N in "${SIZES[@]}"; do
-    for script in bench_haloarrays_hide.jl bench_igg_hide.jl; do
+    for script in bench_halogrids_hide.jl bench_igg_hide.jl; do
       echo "-- $script  nprocs=$n  N=$N --" >&2
       line=$("$MPIEXEC" -n "$n" julia --startup-file=no "$script" "$N" "$NITER" 2>err.log | grep '^RESULT' || true)
       if [[ -z "$line" ]]; then

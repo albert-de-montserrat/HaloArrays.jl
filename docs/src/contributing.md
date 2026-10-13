@@ -79,9 +79,9 @@ not exported public API; array backends override the dispatch hooks through
 package extensions.
 
 ```@docs
-HaloArrays.check_fields
-HaloArrays.is_cuarray
-HaloArrays.pack_target
+HaloGrids.check_fields
+HaloGrids.is_cuarray
+HaloGrids.pack_target
 ```
 
 ## Deployment

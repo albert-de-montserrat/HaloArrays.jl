@@ -73,7 +73,7 @@ end
 
 function write_summary(all_results::Dict{String,Vector{<:NamedTuple}}, outpath::AbstractString)
     open(outpath, "w") do io
-        println(io, "# HaloArrays.jl vs ImplicitGlobalGrid.jl — CPU blocking/overlap benchmark summary\n")
+        println(io, "# HaloGrids.jl vs ImplicitGlobalGrid.jl — CPU blocking/overlap benchmark summary\n")
         println(io, "Both packages run ordinary host-memory MPI transport here (no GPU, no")
         println(io, "GPU-direct/CUDA-aware MPI asymmetry to account for — unlike the benchmarks/gpu")
         println(io, "comparison, see that directory's visualize.jl for that caveat), so these numbers")

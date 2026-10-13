@@ -1,13 +1,13 @@
 # CPU (multi-threaded) benchmark worker for ImplicitGlobalGrid.jl's "hide
 # communication" comparison point — same workload and kernel as
-# bench_haloarrays_hide.jl (its twin, see its header comment for the full
+# bench_halogrids_hide.jl (its twin, see its header comment for the full
 # rationale, kernel, and T_eff read/write count).
 #
 # No overlapped variant here: IGG's `update_halo!` performs its own internal
 # non-blocking pipelining but exposes no start!/finish! split, so there is no
 # hook to run independent compute while any part of the exchange is still in
-# flight (this is the exact limitation HaloArrays.jl's split-phase API was
-# designed to remove — see "Context" in HaloArrays.jl/REDESIGN_PLAN.md, and
+# flight (this is the exact limitation HaloGrids.jl's split-phase API was
+# designed to remove — see "Context" in HaloGrids.jl/REDESIGN_PLAN.md, and
 # benchmarks/bench_igg_hide.jl's identical note). The only available pattern
 # is the fully-serial one benchmarked below.
 import Pkg

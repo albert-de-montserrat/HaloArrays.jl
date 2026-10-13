@@ -1,15 +1,15 @@
 ﻿# Migrating from ImplicitGlobalGrid.jl
 
-HaloArrays uses explicit `Topology` and `Grid` values and per-field halo
+HaloGrids uses explicit `Topology` and `Grid` values and per-field halo
 widths. Read [core concepts](./concepts.md) before converting call sites.
 
 **Check the field layout before changing an exchange call.** Passing a grid
-is sufficient only when the old send/receive ranges match HaloArrays' ranges.
+is sufficient only when the old send/receive ranges match HaloGrids' ranges.
 JustRelax's staggered fields do not all meet that condition.
 
 ## What maps to what
 
-| ImplicitGlobalGrid.jl | HaloArrays.jl | Conditions |
+| ImplicitGlobalGrid.jl | HaloGrids.jl | Conditions |
 |---|---|---|
 | `init_global_grid(...)` | `topology(...); grid(t, nlocal)` | Supply dimensionality, communicator, and periodicity explicitly. |
 | `update_halo!(A)` | `update_halo!(g, A)` | Shape equal to `g.nlocal`; default halo width 1 and overlap 2. |
@@ -21,13 +21,13 @@ JustRelax's staggered fields do not all meet that condition.
 For a dimension with base size `n`, array size `m`, base overlap `o`, and
 exchange width `h`, ImplicitGlobalGrid derives the array overlap as
 `o_A = o + m - n`. Its low send strip starts at `1 + o_A - h`; its high
-send strip starts at `m - o_A + 1`. HaloArrays starts these strips at
+send strip starts at `m - o_A + 1`. HaloGrids starts these strips at
 `overlaps - h + 1` and `m - overlaps + 1`, respectively, so pass
 `overlaps = o_A` to `field` and the ranges agree. With the default
 `overlaps = 2h` they start at `h + 1` and `m - 2h + 1`.
 
 Both receive into the outer `h` cells. If `o_A < 2h`, ImplicitGlobalGrid
-skips exchange in that dimension; HaloArrays has no equivalent per-field
+skips exchange in that dimension; HaloGrids has no equivalent per-field
 automatic skip based on overlap.
 
 With JustRelax's usual `init_global_grid(nx, ny, 1)` defaults (`o=2`,
@@ -42,14 +42,14 @@ With JustRelax's usual `init_global_grid(nx, ny, 1)` defaults (`o=2`,
 | `thermal.T` | `(nx+2, ny+2)` | `(4,4)` | `overlaps=(4,4)` on a grid of its own shape. |
 
 For example, at `nx=8`, a vertex array has length 9. The old low/high
-send indices are `3` and `7`. HaloArrays with width 1 and the default
+send indices are `3` and `7`. HaloGrids with width 1 and the default
 `overlaps=(2,)` sends indices `2` and `8`; `overlaps=(3,)` restores `3`
 and `7`. A rank-constant test cannot detect this shift.
 
 Each distinct shape still needs its own grid to satisfy shape validation.
 Increasing halo width instead of overlap changes the receive region and
 number of exchanged cells, so it is not an equivalent migration. The old
-rank stride is `n-o`; HaloArrays uses `m-overlaps`, which is the same when
+rank stride is `n-o`; HaloGrids uses `m-overlaps`, which is the same when
 `overlaps = o_A`.
 
 ## A supported exchange pattern
@@ -58,7 +58,7 @@ Build a grid once and reuse it. Add `overlaps=` to `field` when the layout
 is not the default `2*halowidths`:
 
 ```julia
-using HaloArrays
+using HaloGrids
 import MPI
 
 # Fresh 2D topology; choose periodicity to match the application.

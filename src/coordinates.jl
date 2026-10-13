@@ -65,7 +65,7 @@ rather than a real neighboring cell.
 
 # Examples
 ```julia
-grid = HaloArrays.grid(topology((2,1)), (10, 8))
+grid = HaloGrids.grid(topology((2,1)), (10, 8))
 f = field(zeros(10, 8))
 iglobal(grid, f, 1, 1)   # first local index (including halo) -> its global index
 ```

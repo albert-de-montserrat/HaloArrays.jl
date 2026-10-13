@@ -2,7 +2,7 @@
 ---
 layout: home
 hero:
-  name: HaloArrays.jl
+  name: HaloGrids.jl
   text: Halo exchange with explicit grids.
   tagline: Build Cartesian MPI topologies, wrap local arrays, and exchange boundary data in Julia.
   actions:
@@ -43,15 +43,15 @@ Continue with [Topologies, grids, and fields](./guide/concepts.md) for the model
 
 These pages describe the implementation in this checkout of version 0.1.0.
 The examples use CPU arrays. `CuArray`/`ROCArray` fields work as drop-in
-replacements wherever a `Field` wraps an array (see `ext/HaloArraysCUDAExt.jl`
-and `ext/HaloArraysAMDGPUExt.jl`); the CUDA extension is tested against real
+replacements wherever a `Field` wraps an array (see `ext/HaloGridsCUDAExt.jl`
+and `ext/HaloGridsAMDGPUExt.jl`); the CUDA extension is tested against real
 hardware, while the AMDGPU extension is a structurally identical port that has
 not been run against real ROCm hardware yet. `save_hdf5`/`load_hdf5!` (see
-`ext/HaloArraysHDF5Ext.jl` and the [MPI/HDF5 file I/O guide](./guide/hdf5-io.md))
+`ext/HaloGridsHDF5Ext.jl` and the [MPI/HDF5 file I/O guide](./guide/hdf5-io.md))
 write and read `Field` data to/from a shared HDF5 file once `HDF5` is loaded;
 no parallel-HDF5 build is assumed, so ranks take turns writing rather than
 writing simultaneously — see the guide for what that does and doesn't change
-for the caller. `save_pvtk` (see `ext/HaloArraysWriteVTKExt.jl` and the
+for the caller. `save_pvtk` (see `ext/HaloGridsWriteVTKExt.jl` and the
 [Parallel ParaView (pvtk) I/O guide](./guide/pvtk-io.md)) writes `Field` data
 to ParaView's parallel VTK XML image-data format once `WriteVTK` is loaded;
 unlike `save_hdf5`, every rank writes its own independent file (no shared-file

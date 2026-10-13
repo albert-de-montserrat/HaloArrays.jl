@@ -3,14 +3,14 @@
 # on rank 0:
 #   RESULT,ImplicitGlobalGrid,<nprocs>,<N>,<niter>,<time_s>,<bytes>,<gctime_s>,<pauses>,<full_sweep>
 #
-# Same workload as bench_haloarrays_hide.jl (one 3D 7-point-Laplacian
+# Same workload as bench_halogrids_hide.jl (one 3D 7-point-Laplacian
 # diffusion step on A, with B exchanged alongside it for equal communication
 # volume) — but there is no overlapped variant to measure here: IGG's
 # `update_halo!` performs its own internal non-blocking pipelining but does
 # not expose a start!/finish! split, so a caller has no hook to run
 # independent compute while any part of the exchange is still in flight (this
-# was the exact limitation HaloArrays.jl's split-phase API was designed to
-# remove — see "Context" in HaloArrays.jl/REDESIGN_PLAN.md). The only
+# was the exact limitation HaloGrids.jl's split-phase API was designed to
+# remove — see "Context" in HaloGrids.jl/REDESIGN_PLAN.md). The only
 # available pattern is therefore the fully-serial one benchmarked below:
 # block on the whole exchange, then compute the whole interior.
 import Pkg

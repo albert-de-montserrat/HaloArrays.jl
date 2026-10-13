@@ -1,5 +1,5 @@
 # Correctness tests for the parallel ParaView (pvtk) I/O extension
-# (src/WriteVTKExt/, ext/HaloArraysWriteVTKExt.jl).
+# (src/WriteVTKExt/, ext/HaloGridsWriteVTKExt.jl).
 #
 # Fill strategy: every rank fills its *entire* local array (halo cells
 # included) from `iglobal`, so a cell's value depends only on its global
@@ -22,7 +22,7 @@
 push!(LOAD_PATH, joinpath(@__DIR__, "..", "src"))
 using Test
 import MPI
-using HaloArrays
+using HaloGrids
 using WriteVTK
 using ReadVTK
 
@@ -31,7 +31,7 @@ comm = MPI.COMM_WORLD
 rank = MPI.Comm_rank(comm)
 nprocs = MPI.Comm_size(comm)
 
-ext = Base.get_extension(HaloArrays, :HaloArraysWriteVTKExt)
+ext = Base.get_extension(HaloGrids, :HaloGridsWriteVTKExt)
 @test ext !== nothing
 
 function cleanup!(path::AbstractString)
@@ -46,7 +46,7 @@ end
 fill_formula(gidx::NTuple{N,Integer}) where {N} = sum(gidx[d] * 1000.0^(d - 1) for d in 1:N)
 
 global_fill_value(grid::Grid{N}, field::Field{T,N}, ci::CartesianIndex{N}) where {T,N} =
-    fill_formula(ntuple(d -> HaloArrays.iglobal(grid, field, d, ci[d]), N))
+    fill_formula(ntuple(d -> HaloGrids.iglobal(grid, field, d, ci[d]), N))
 
 function fill_globally!(grid::Grid, field::Field)
     for ci in CartesianIndices(field.data)
@@ -66,7 +66,7 @@ reshape_like(a, template) = reshape(a, size(template))
     f = field(zeros(nlocal...); halowidths = hw)
     fill_globally!(g, f)
 
-    path = joinpath(tempdir(), "haloarrays_pvtk_single_N$(N)_n$(nprocs)")
+    path = joinpath(tempdir(), "halogrids_pvtk_single_N$(N)_n$(nprocs)")
     cleanup!(path)
 
     saved = save_pvtk(g, f, path; name = "x")
@@ -108,7 +108,7 @@ end
     fill_globally!(g, fu)
     fill_globally!(g, fv)
 
-    path = joinpath(tempdir(), "haloarrays_pvtk_multi_n$(nprocs)")
+    path = joinpath(tempdir(), "halogrids_pvtk_multi_n$(nprocs)")
     cleanup!(path)
 
     saved = save_pvtk(g, (fu, fv), path; names = ("u", "v"))
@@ -130,7 +130,7 @@ end
     f1 = field(fill(1.0, 6, 6); halowidths = (1, 1))
     f2 = field(fill(2.0, 6, 6); halowidths = (1, 1))
 
-    path = joinpath(tempdir(), "haloarrays_pvtk_default_names_n$(nprocs)")
+    path = joinpath(tempdir(), "halogrids_pvtk_default_names_n$(nprocs)")
     cleanup!(path)
 
     saved = save_pvtk(g, (f1, f2), path)
@@ -152,7 +152,7 @@ end
     f = field(zeros(6, 6); halowidths = (1, 1))
     fill_globally!(g, f)
 
-    path = joinpath(tempdir(), "haloarrays_pvtk_ismain_n$(nprocs)")
+    path = joinpath(tempdir(), "halogrids_pvtk_ismain_n$(nprocs)")
     cleanup!(path)
 
     saved = save_pvtk(g, f, path; name = "x")
@@ -180,7 +180,7 @@ end
         ptopo = topology((0, 0); comm = comm, periods = (true, false))
         pg = grid(ptopo, (6, 6))
         pf = field(zeros(6, 6); halowidths = (1, 1))
-        path = joinpath(tempdir(), "haloarrays_pvtk_periodic_n$(nprocs)")
+        path = joinpath(tempdir(), "halogrids_pvtk_periodic_n$(nprocs)")
         cleanup!(path)
         @test_throws Exception save_pvtk(pg, pf, path)
         @test !isfile(path * ".pvti")
@@ -190,7 +190,7 @@ end
     @testset "duplicate field names rejected before any file is touched" begin
         f1 = field(zeros(6, 6); halowidths = (1, 1))
         f2 = field(zeros(6, 6); halowidths = (1, 1))
-        path = joinpath(tempdir(), "haloarrays_pvtk_dupname_n$(nprocs)")
+        path = joinpath(tempdir(), "halogrids_pvtk_dupname_n$(nprocs)")
         cleanup!(path)
         @test_throws Exception save_pvtk(g, (f1, f2), path; names = ("dup", "dup"))
         @test !isfile(path * ".pvti")
@@ -200,7 +200,7 @@ end
     @testset "mixed halowidths across a batch rejected" begin
         f1 = field(zeros(6, 6); halowidths = (1, 1))
         f2 = field(zeros(6, 6); halowidths = (2, 1))
-        path = joinpath(tempdir(), "haloarrays_pvtk_mixedhw_n$(nprocs)")
+        path = joinpath(tempdir(), "halogrids_pvtk_mixedhw_n$(nprocs)")
         cleanup!(path)
         @test_throws Exception save_pvtk(g, (f1, f2), path; names = ("a", "b"))
         @test !isfile(path * ".pvti")
@@ -209,7 +209,7 @@ end
 
     @testset "non-CPU-strided field data is rejected before touching the file" begin
         bad = field(falses(6, 6); halowidths = (1, 1))
-        path = joinpath(tempdir(), "haloarrays_pvtk_badtype_n$(nprocs)")
+        path = joinpath(tempdir(), "halogrids_pvtk_badtype_n$(nprocs)")
         cleanup!(path)
         @test_throws Exception save_pvtk(g, bad, path)
         @test !isfile(path * ".pvti")
@@ -217,7 +217,7 @@ end
     end
 
     @testset "invalid dx rejected" begin
-        path = joinpath(tempdir(), "haloarrays_pvtk_dx_n$(nprocs)")
+        path = joinpath(tempdir(), "halogrids_pvtk_dx_n$(nprocs)")
         cleanup!(path)
         @test_throws Exception save_pvtk(g, f, path; dx = (1.0, -1.0))
         @test_throws Exception save_pvtk(g, f, path; dx = (1.0,))

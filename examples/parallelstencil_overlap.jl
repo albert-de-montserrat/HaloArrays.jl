@@ -1,6 +1,6 @@
 # Run from the repository root with --project=test (contains ParallelStencil).
 # Arguments: local side length including halos, computation width per side.
-using HaloArrays
+using HaloGrids
 using MPI
 using ParallelStencil
 @init_parallel_stencil(Threads, Float64, 2)

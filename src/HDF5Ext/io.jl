@@ -22,7 +22,7 @@
 # they were in the caller's array; call update_halo! afterward to repopulate
 # them from the freshly loaded neighbor data.
 
-using HaloArrays
+using HaloGrids
 using HDF5
 using MPI
 
@@ -37,7 +37,7 @@ function resolve_group(h5, group::AbstractString, create::Bool)
     end
 end
 
-function check_field_batch(grid::HaloArrays.Grid{N}, fields::NTuple{M,HaloArrays.Field}, names::NTuple{M,AbstractString}) where {N,M}
+function check_field_batch(grid::HaloGrids.Grid{N}, fields::NTuple{M,HaloGrids.Field}, names::NTuple{M,AbstractString}) where {N,M}
     M >= 1 || throw(HDF5IOError("at least one field is required."))
     allunique(names) || throw(HDF5IOError("field names must be unique within a file; got $(names)."))
     for (i, f) in enumerate(fields)
@@ -46,11 +46,11 @@ function check_field_batch(grid::HaloArrays.Grid{N}, fields::NTuple{M,HaloArrays
             "save_hdf5/load_hdf5! require every field to match the grid's dimensionality exactly."))
         require_cpu_array(f, i)
     end
-    HaloArrays.check_fields(grid, fields)
+    HaloGrids.check_fields(grid, fields)
     return nothing
 end
 
-function write_field_dataset!(parent, group::AbstractString, grid::HaloArrays.Grid{N}, field::HaloArrays.Field{T,N},
+function write_field_dataset!(parent, group::AbstractString, grid::HaloGrids.Grid{N}, field::HaloGrids.Field{T,N},
                                meta::HDF5Metadata, create::Bool) where {T,N}
     if create
         haskey(parent, meta.field_name) && throw(HDF5IOError(
@@ -65,7 +65,7 @@ function write_field_dataset!(parent, group::AbstractString, grid::HaloArrays.Gr
     return nothing
 end
 
-function read_field_dataset!(parent, group::AbstractString, grid::HaloArrays.Grid{N}, field::HaloArrays.Field{T,N},
+function read_field_dataset!(parent, group::AbstractString, grid::HaloGrids.Grid{N}, field::HaloGrids.Field{T,N},
                               field_name::AbstractString; repartition::Bool = false) where {T,N}
     haskey(parent, field_name) || throw(HDF5IOError(
         "no dataset named \"$field_name\" in group \"$group\"."))
@@ -79,7 +79,7 @@ function read_field_dataset!(parent, group::AbstractString, grid::HaloArrays.Gri
     return nothing
 end
 
-function HaloArrays.save_hdf5(grid::HaloArrays.Grid{N}, fields::NTuple{M,HaloArrays.Field}, path::AbstractString;
+function HaloGrids.save_hdf5(grid::HaloGrids.Grid{N}, fields::NTuple{M,HaloGrids.Field}, path::AbstractString;
                                names::NTuple{M,AbstractString} = default_field_names(M),
                                group::AbstractString = HDF5_IO_DEFAULT_GROUP,
                                mode::AbstractString = "w") where {N,M}
@@ -121,13 +121,13 @@ function HaloArrays.save_hdf5(grid::HaloArrays.Grid{N}, fields::NTuple{M,HaloArr
     return path
 end
 
-function HaloArrays.save_hdf5(grid::HaloArrays.Grid{N}, field::HaloArrays.Field{T,N}, path::AbstractString;
+function HaloGrids.save_hdf5(grid::HaloGrids.Grid{N}, field::HaloGrids.Field{T,N}, path::AbstractString;
                                name::AbstractString = "field", kwargs...) where {T,N}
-    HaloArrays.save_hdf5(grid, (field,), path; names = (name,), kwargs...)
+    HaloGrids.save_hdf5(grid, (field,), path; names = (name,), kwargs...)
     return path
 end
 
-function HaloArrays.load_hdf5!(grid::HaloArrays.Grid{N}, fields::NTuple{M,HaloArrays.Field}, path::AbstractString;
+function HaloGrids.load_hdf5!(grid::HaloGrids.Grid{N}, fields::NTuple{M,HaloGrids.Field}, path::AbstractString;
                                 names::NTuple{M,AbstractString} = default_field_names(M),
                                 group::AbstractString = HDF5_IO_DEFAULT_GROUP,
                                 repartition::Bool = false) where {N,M}
@@ -142,8 +142,8 @@ function HaloArrays.load_hdf5!(grid::HaloArrays.Grid{N}, fields::NTuple{M,HaloAr
     return fields
 end
 
-function HaloArrays.load_hdf5!(grid::HaloArrays.Grid{N}, field::HaloArrays.Field{T,N}, path::AbstractString;
+function HaloGrids.load_hdf5!(grid::HaloGrids.Grid{N}, field::HaloGrids.Field{T,N}, path::AbstractString;
                                 name::AbstractString = "field", kwargs...) where {T,N}
-    HaloArrays.load_hdf5!(grid, (field,), path; names = (name,), kwargs...)
+    HaloGrids.load_hdf5!(grid, (field,), path; names = (name,), kwargs...)
     return field
 end

@@ -1,4 +1,4 @@
-# Correctness tests for the CUDA extension (src/CUDAExt/, ext/HaloArraysCUDAExt.jl).
+# Correctness tests for the CUDA extension (src/CUDAExt/, ext/HaloGridsCUDAExt.jl).
 #
 # Gated on CUDA.functional(): this machine has a real NVIDIA GPU, so this is
 # expected to actually run and pass here, not just compile — see
@@ -15,7 +15,7 @@ if !CUDA.functional()
     exit(0)
 end
 
-using HaloArrays
+using HaloGrids
 
 MPI.Init()
 comm = MPI.COMM_WORLD

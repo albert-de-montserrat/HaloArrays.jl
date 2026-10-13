@@ -5,7 +5,7 @@
 # bytes/call, even at nprocs=1 self-periodic. Bisected the same way as the CPU
 # work (isolated, warmed-up, amortized @allocated measurements run *inside a
 # function*, comparing against a byte-for-byte-identical CPU Vector control to
-# separate "HaloArrays' code" from "CUDA.jl/GPUArrays.jl's own cost"), the
+# separate "HaloGrids' code" from "CUDA.jl/GPUArrays.jl's own cost"), the
 # floor comes from two costs entirely internal to CUDA.jl/GPUArrays.jl, not
 # from anything this package's code does:
 #
@@ -15,7 +15,7 @@
 #      code (`view(reinterpret(T, buf), 1:len)`) on a plain CPU `Vector{UInt8}`
 #      measures exactly 0 B — proving this is `CuArray`'s own construction
 #      cost (it needs to register/track a new device-memory reference for its
-#      GC-integrated buffer pool), not a HaloArrays.jl inlining failure. This
+#      GC-integrated buffer pool), not a HaloGrids.jl inlining failure. This
 #      part *is* addressed: `CUDACache`/`ROCCache` (src/CUDAExt/shared.jl,
 #      src/AMDGPUExt/shared.jl) now cache the constructed view itself
 #      (`ViewCache`/`cached_typed_view!`), keyed on `(eltype, len, rawlen)`,
@@ -70,7 +70,7 @@ if !CUDA.functional()
     exit(0)
 end
 
-using HaloArrays
+using HaloGrids
 
 function run_gpu_allocation_tests()
     MPI.Init()

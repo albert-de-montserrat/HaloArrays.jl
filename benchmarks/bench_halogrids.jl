@@ -1,17 +1,17 @@
-# Per-process benchmark worker for HaloArrays.jl, run under `mpiexec` by
+# Per-process benchmark worker for HaloGrids.jl, run under `mpiexec` by
 # run_comparison.jl. Prints exactly one CSV line on rank 0:
-#   RESULT,HaloArrays,<nprocs>,<N>,<niter>,<time_s>,<bytes>,<gctime_s>,<pauses>,<full_sweep>
+#   RESULT,HaloGrids,<nprocs>,<N>,<niter>,<time_s>,<bytes>,<gctime_s>,<pauses>,<full_sweep>
 #
 # Mirrors bench_igg.jl as closely as the two APIs allow: same global domain
 # size and decomposition (MPI.Dims_create picks the same split for the same
 # nprocs/comm), same 2x Float64 fields, same halo width (1), fully periodic
 # in every dimension so nprocs=1 is a pure self-periodic (no real network
 # transport) measurement exactly like test_allocations.jl's methodology in
-# HaloArrays.jl/REDESIGN_PLAN.md.
+# HaloGrids.jl/REDESIGN_PLAN.md.
 import Pkg
 Pkg.activate(joinpath(@__DIR__, ".."); io=devnull)
 import MPI
-using HaloArrays
+using HaloGrids
 
 function main()
     N      = parse(Int, ARGS[1])
@@ -43,7 +43,7 @@ function main()
 
     if rank == 0
         gs = stats.gcstats
-        println("RESULT,HaloArrays,$nprocs,$N,$niter,$(stats.time),$(stats.bytes),$(stats.gctime),$(gs.pause),$(gs.full_sweep)")
+        println("RESULT,HaloGrids,$nprocs,$N,$niter,$(stats.time),$(stats.bytes),$(stats.gctime),$(gs.pause),$(gs.full_sweep)")
     end
     MPI.Barrier(comm)
     MPI.Finalize()

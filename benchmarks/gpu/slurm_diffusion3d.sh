@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SLURM submission + matrix driver for the diffusion3D GPU comparison
-# Runs blocking and communication-hiding variants for both HaloArrays and
+# Runs blocking and communication-hiding variants for both HaloGrids and
 # ImplicitGlobalGrid. Submit with:
 #   sbatch slurm_diffusion3d.sh
 #
@@ -9,8 +9,8 @@
 # a CSCS Alps GH200 system, `--uenv julia/25.5:v1 --view=juliaup`, Cray MPICH
 # GTL GPU support, IGG's CUDA-aware-MPI env var. That env var is deliberately
 # left ON: ImplicitGlobalGrid gets real GPU-direct MPI transport on this
-# cluster while HaloArrays.jl's CUDA extension always stages through host
-# memory (documented scope gap, not a bug — see HaloArrays.jl/REDESIGN_PLAN.md).
+# cluster while HaloGrids.jl's CUDA extension always stages through host
+# memory (documented scope gap, not a bug — see HaloGrids.jl/REDESIGN_PLAN.md).
 # This is a real, expected asymmetry in the results below, not neutralized —
 # see visualize.jl's summary output, which flags it explicitly.
 #
@@ -47,8 +47,8 @@ rm -f "$OUT"
 
 for n in "${NTASKS_MATRIX[@]}"; do
   for script in \
-    bench_haloarrays_diffusion3d.jl \
-    bench_haloarrays_diffusion3d_hide.jl \
+    bench_halogrids_diffusion3d.jl \
+    bench_halogrids_diffusion3d_hide.jl \
     bench_igg_diffusion3d.jl \
     bench_igg_diffusion3d_hide.jl; do
     echo "-- $script  gpus=$n  local_N=${N}^3 --" >&2

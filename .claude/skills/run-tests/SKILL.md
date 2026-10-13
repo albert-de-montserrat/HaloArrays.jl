@@ -1,9 +1,9 @@
 ---
 name: run-tests
-description: Pick and run the right HaloArrays.jl tests for a change (focused file, MPI matrix, threaded, test-project, GPU) and report skips accurately. Use after any source edit or when asked to verify.
+description: Pick and run the right HaloGrids.jl tests for a change (focused file, MPI matrix, threaded, test-project, GPU) and report skips accurately. Use after any source edit or when asked to verify.
 ---
 
-# Run HaloArrays tests
+# Run HaloGrids tests
 
 Run from the repository root. Never wrap `test/runtests.jl` in `mpiexec`.
 

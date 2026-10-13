@@ -2,10 +2,10 @@
 # by run_comparison.jl. Prints exactly one CSV line on rank 0:
 #   RESULT,ImplicitGlobalGrid,<nprocs>,<N>,<niter>,<time_s>,<bytes>,<gctime_s>,<pauses>,<full_sweep>
 #
-# Mirrors bench_haloarrays.jl as closely as the two APIs allow: same global
+# Mirrors bench_halogrids.jl as closely as the two APIs allow: same global
 # domain size (N^3 local per rank, same Dims_create decomposition for the
 # same nprocs/comm), same 2x Float64 arrays, same halo width (overlaps=(2,2,2)
-# => halowidths=(1,1,1), identical to HaloArrays' fixed halowidths=(1,1,1)),
+# => halowidths=(1,1,1), identical to HaloGrids' fixed halowidths=(1,1,1)),
 # fully periodic in every dimension.
 import Pkg
 Pkg.activate(joinpath(@__DIR__, "..", "..", "ImplicitGlobalGrid.jl"); io=devnull)

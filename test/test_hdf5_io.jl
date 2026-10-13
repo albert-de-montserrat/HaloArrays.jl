@@ -1,5 +1,5 @@
 # Correctness tests for the MPI/HDF5 file I/O extension (src/HDF5Ext/,
-# ext/HaloArraysHDF5Ext.jl).
+# ext/HaloGridsHDF5Ext.jl).
 #
 # Fill strategy: every rank fills its *entire* local array (halo cells
 # included) from `iglobal`, so a cell's value depends only on its global
@@ -16,7 +16,7 @@
 push!(LOAD_PATH, joinpath(@__DIR__, "..", "src"))
 using Test
 import MPI
-using HaloArrays
+using HaloGrids
 using HDF5
 
 MPI.Init()
@@ -24,7 +24,7 @@ comm = MPI.COMM_WORLD
 rank = MPI.Comm_rank(comm)
 nprocs = MPI.Comm_size(comm)
 
-ext = Base.get_extension(HaloArrays, :HaloArraysHDF5Ext)
+ext = Base.get_extension(HaloGrids, :HaloGridsHDF5Ext)
 @test ext !== nothing
 
 function cleanup!(path::AbstractString)
@@ -34,7 +34,7 @@ function cleanup!(path::AbstractString)
 end
 
 global_fill_value(grid::Grid{N}, field::Field{T,N}, ci::CartesianIndex{N}) where {T,N} =
-    sum(HaloArrays.iglobal(grid, field, d, ci[d]) * 1000.0^(d - 1) for d in 1:N)
+    sum(HaloGrids.iglobal(grid, field, d, ci[d]) * 1000.0^(d - 1) for d in 1:N)
 
 function fill_globally!(grid::Grid, field::Field)
     for ci in CartesianIndices(field.data)
@@ -72,7 +72,7 @@ end
     f = field(zeros(nlocal...); halowidths = hw)
     fill_globally!(g, f)
 
-    path = joinpath(tempdir(), "haloarrays_hdf5_single_N$(N)_p$(join(Int.(periods)))_n$(nprocs).h5")
+    path = joinpath(tempdir(), "halogrids_hdf5_single_N$(N)_p$(join(Int.(periods)))_n$(nprocs).h5")
     cleanup!(path)
 
     save_hdf5(g, f, path)
@@ -99,7 +99,7 @@ end
     fill_globally!(g, fu)
     fill_globally!(g, fv)
 
-    path = joinpath(tempdir(), "haloarrays_hdf5_multi_n$(nprocs).h5")
+    path = joinpath(tempdir(), "halogrids_hdf5_multi_n$(nprocs).h5")
     cleanup!(path)
 
     save_hdf5(g, (fu, fv), path; names = ("u", "v"))
@@ -121,7 +121,7 @@ end
     f1 = field(fill(1.0, 6, 6); halowidths = (1, 1))
     f2 = field(fill(2.0, 6, 6); halowidths = (1, 1))
 
-    path = joinpath(tempdir(), "haloarrays_hdf5_default_names_n$(nprocs).h5")
+    path = joinpath(tempdir(), "halogrids_hdf5_default_names_n$(nprocs).h5")
     cleanup!(path)
 
     save_hdf5(g, (f1, f2), path)
@@ -143,7 +143,7 @@ end
     f = field(zeros(6, 6); halowidths = (1, 1))
     fill_globally!(g, f)
 
-    path = joinpath(tempdir(), "haloarrays_hdf5_validation_n$(nprocs).h5")
+    path = joinpath(tempdir(), "halogrids_hdf5_validation_n$(nprocs).h5")
     cleanup!(path)
     save_hdf5(g, f, path; name = "x")
 
@@ -166,7 +166,7 @@ end
     @testset "duplicate field names rejected before any file is touched" begin
         f1 = field(zeros(6, 6); halowidths = (1, 1))
         f2 = field(zeros(6, 6); halowidths = (1, 1))
-        dup_path = joinpath(tempdir(), "haloarrays_hdf5_dupname_n$(nprocs).h5")
+        dup_path = joinpath(tempdir(), "halogrids_hdf5_dupname_n$(nprocs).h5")
         @test_throws Exception save_hdf5(g, (f1, f2), dup_path; names = ("dup", "dup"))
         @test !isfile(dup_path)
     end
@@ -177,7 +177,7 @@ end
 
     @testset "non-CPU-strided field data is rejected before touching the file" begin
         bad = field(falses(6, 6); halowidths = (1, 1))
-        bad_path = joinpath(tempdir(), "haloarrays_hdf5_badtype_n$(nprocs).h5")
+        bad_path = joinpath(tempdir(), "halogrids_hdf5_badtype_n$(nprocs).h5")
         @test_throws Exception save_hdf5(g, bad, bad_path)
         @test !isfile(bad_path)
     end
@@ -190,7 +190,7 @@ end
     counts in unique(((1, nprocs), (nprocs, 1), (nprocs, nprocs),
                       (min(4, nprocs), min(2, nprocs)), (min(4, nprocs), nprocs)))
 
-    path = joinpath(tempdir(), "haloarrays_restart_N$(N)_n$(nprocs).h5")
+    path = joinpath(tempdir(), "halogrids_restart_N$(N)_n$(nprocs).h5")
     cleanup!(path)
     hw = ntuple(d -> d == 1 ? 2 : 1, N)
     # Fixed global domain, divisible by every rank count in the test matrix.

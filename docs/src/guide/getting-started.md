@@ -1,6 +1,6 @@
 # Getting started
 
-Use Julia 1.9 or newer and an instantiated checkout of HaloArrays.jl. MPI.jl is
+Use Julia 1.9 or newer and an instantiated checkout of HaloGrids.jl. MPI.jl is
 the package's required runtime dependency. From the repository root:
 
 ```sh
@@ -8,7 +8,7 @@ julia --project=. -e 'using Pkg; Pkg.instantiate()'
 ```
 
 To use this checkout in another Julia environment, run
-`Pkg.develop(path="/path/to/HaloArrays.jl")` from that environment.
+`Pkg.develop(path="/path/to/HaloGrids.jl")` from that environment.
 
 ## A complete periodic exchange
 

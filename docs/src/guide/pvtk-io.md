@@ -4,13 +4,13 @@
 format (`.pvti` header + one `.vti` piece per rank), using the `Grid`'s
 Cartesian topology to place each rank's piece at its correct position. This
 is an optional extension: it activates only once `WriteVTK` is loaded
-alongside `HaloArrays`. It is **write-only** — ParaView (or `ReadVTK.jl`,
+alongside `HaloGrids`. It is **write-only** — ParaView (or `ReadVTK.jl`,
 used only in this repository's own tests) is the reader, so there is no
 `load_pvtk!` counterpart to `save_hdf5`/`load_hdf5!`.
 
 ```julia
-using HaloArrays
-using WriteVTK   # loads HaloArraysWriteVTKExt
+using HaloGrids
+using WriteVTK   # loads HaloGridsWriteVTKExt
 
 t = topology((0, 0))
 g = grid(t, (66, 66))
@@ -47,7 +47,7 @@ parallel VTK format, not a stylistic choice — per WriteVTK's docs, "the
 extents for different processes overlap ... This is a requirement of VTK,
 and without it the full data cannot be visualised in ParaView."
 
-`HaloArrays` already keeps halo cells exactly synchronized with each
+`HaloGrids` already keeps halo cells exactly synchronized with each
 neighbor's real data via [`update_halo!`](./halo-exchange.md), so as long as
 you call it before `save_pvtk` (or your fill routine already produces
 globally-consistent halo values, e.g. because every cell's value is a pure
@@ -123,7 +123,7 @@ save_pvtk(g, field(Array(gpu_field.data); halowidths=gpu_field.halowidths), "sta
 
 ## Runnable example
 
-The runnable [`gaussian3d_pvtk.jl`](https://github.com/albert-de-montserrat/HaloArrays.jl/blob/master/examples/gaussian3d_pvtk.jl)
+The runnable [`gaussian3d_pvtk.jl`](https://github.com/albert-de-montserrat/HaloGrids.jl/blob/master/examples/gaussian3d_pvtk.jl)
 example writes a 3D Gaussian bump, distributed across however many ranks the
 launcher gives it, as a parallel ParaView file set — a good way to
 hand-verify that neighboring ranks' pieces really do stitch into one

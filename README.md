@@ -1,10 +1,10 @@
-# HaloArrays.jl
+# HaloGrids.jl
 
-[![CI](https://github.com/albert-de-montserrat/HaloArrays.jl/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/albert-de-montserrat/HaloArrays.jl/actions/workflows/ci.yml)
-[![Documentation](https://img.shields.io/badge/docs-dev-blue.svg)](https://albert-de-montserrat.github.io/HaloArrays.jl/dev/)
+[![CI](https://github.com/albert-de-montserrat/HaloGrids.jl/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/albert-de-montserrat/HaloGrids.jl/actions/workflows/ci.yml)
+[![Documentation](https://img.shields.io/badge/docs-dev-blue.svg)](https://albert-de-montserrat.github.io/HaloGrids.jl/dev/)
 [![Julia compatibility](https://img.shields.io/badge/Julia-1.9%2B-9558B2.svg)](Project.toml)
 
-HaloArrays.jl exchanges halo cells between Julia arrays distributed over
+HaloGrids.jl exchanges halo cells between Julia arrays distributed over
 Cartesian MPI process layouts in 2D and 3D. Each application explicitly owns
 its topology, grids, and fields, making communication state and array layout
 visible at the call site.
@@ -18,7 +18,7 @@ global coordinate helpers, gathering, and scalar MPI reductions. Sequential
 dimension exchanges propagate edge and corner values.
 
 Read the [getting-started guide](docs/src/guide/getting-started.md) or browse
-the [online documentation](https://albert-de-montserrat.github.io/HaloArrays.jl/dev/).
+the [online documentation](https://albert-de-montserrat.github.io/HaloGrids.jl/dev/).
 
 ## Installation
 
@@ -27,7 +27,7 @@ environment:
 
 ```julia
 using Pkg
-Pkg.add(url="https://github.com/albert-de-montserrat/HaloArrays.jl.git")
+Pkg.add(url="https://github.com/albert-de-montserrat/HaloGrids.jl.git")
 ```
 
 For an existing checkout, instantiate its project from the repository root:
@@ -43,7 +43,7 @@ one-cell halo on every side. Zeros in the topology dimensions let MPI choose
 the process layout; they do not specify array sizes.
 
 ```julia
-using HaloArrays
+using HaloGrids
 import MPI
 
 MPI.Init()

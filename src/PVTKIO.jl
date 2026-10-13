@@ -1,7 +1,7 @@
 export save_pvtk
 
 const PVTKEXT_INSTALL_MSG = "requires the optional WriteVTK extension: run `using WriteVTK` " *
-    "(after `]add WriteVTK`) to enable HaloArraysWriteVTKExt."
+    "(after `]add WriteVTK`) to enable HaloGridsWriteVTKExt."
 
 """
     save_pvtk(grid::Grid, field::Field, path; name="field", dx=ntuple(_->1.0,N))
@@ -43,7 +43,7 @@ data.
 
 This is a stub method: calling it without `WriteVTK` loaded raises this
 error rather than a bare `MethodError`. Loading `WriteVTK` (`using WriteVTK`)
-resolves the call to `HaloArraysWriteVTKExt`'s implementation via ordinary
+resolves the call to `HaloGridsWriteVTKExt`'s implementation via ordinary
 multiple dispatch — the same "declare a stub in core, add methods from the
 extension" pattern as [`save_hdf5`](@ref) and `is_cuarray`/`is_rocarray` in
 `backend.jl` — so no `Base.get_extension` lookup is needed at the call site.

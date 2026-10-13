@@ -1,7 +1,7 @@
 # GPU (CUDA) benchmark worker for ImplicitGlobalGrid.jl: same Cp-weighted 3D
-# heat diffusion physics as bench_haloarrays_diffusion3d.jl (its twin, see
+# heat diffusion physics as bench_halogrids_diffusion3d.jl (its twin, see
 # its header comment for the full rationale and T_eff read/write count),
-# using the same ParallelStencil CUDA kernels as the HaloArrays worker. The
+# using the same ParallelStencil CUDA kernels as the HaloGrids worker. The
 # temperature update is split into boundary and interior launches by
 # `@hide_communication`, allowing the wall kernels and IGG halo exchange to
 # overlap the interior update. Rank 0 saves one result record to the JLD2 path

@@ -10,11 +10,11 @@
 # grid's topology must call it together (gather_extents's MPI.Allgather
 # blocks otherwise), same as save_hdf5.
 
-using HaloArrays
+using HaloGrids
 using WriteVTK
 using MPI
 
-function HaloArrays.save_pvtk(grid::HaloArrays.Grid{N}, fields::NTuple{M,HaloArrays.Field}, path::AbstractString;
+function HaloGrids.save_pvtk(grid::HaloGrids.Grid{N}, fields::NTuple{M,HaloGrids.Field}, path::AbstractString;
                                names::NTuple{M,AbstractString} = default_field_names(M),
                                dx::NTuple{N,Real} = ntuple(_ -> 1.0, N)) where {N,M}
     check_pvtk_batch(grid, fields, names, dx)
@@ -32,7 +32,7 @@ function HaloArrays.save_pvtk(grid::HaloArrays.Grid{N}, fields::NTuple{M,HaloArr
     return saved
 end
 
-function HaloArrays.save_pvtk(grid::HaloArrays.Grid{N}, field::HaloArrays.Field{T,N}, path::AbstractString;
+function HaloGrids.save_pvtk(grid::HaloGrids.Grid{N}, field::HaloGrids.Field{T,N}, path::AbstractString;
                                name::AbstractString = "field", kwargs...) where {T,N}
-    return HaloArrays.save_pvtk(grid, (field,), path; names = (name,), kwargs...)
+    return HaloGrids.save_pvtk(grid, (field,), path; names = (name,), kwargs...)
 end
