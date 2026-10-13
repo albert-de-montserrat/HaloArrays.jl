@@ -1,5 +1,5 @@
 # 3D heat diffusion on a periodic domain, decomposed across MPI ranks with
-# HaloArrays.jl — a direct port of ImplicitGlobalGrid.jl's
+# HaloGrids.jl — a direct port of ImplicitGlobalGrid.jl's
 # examples/diffusion3D_multicpu_novis.jl onto the new API, doubling as a
 # worked example of the per-field coordinate helpers (nx_g/x_g/... in
 # src/coordinates.jl): initial conditions are built from *physical*
@@ -16,7 +16,7 @@
 # data. This example checks that conservation directly (`@assert rel_drift <
 # ...` below), which makes it a real correctness check, not just a
 # doesn't-crash smoke test.
-using HaloArrays
+using HaloGrids
 import MPI
 
 @views d_xa(A) = A[2:end, :, :] .- A[1:end-1, :, :]

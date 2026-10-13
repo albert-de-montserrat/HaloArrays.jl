@@ -1,6 +1,6 @@
-# Working on HaloArrays.jl
+# Working on HaloGrids.jl
 
-HaloArrays is a Julia package for explicit Cartesian MPI topologies and halo
+HaloGrids is a Julia package for explicit Cartesian MPI topologies and halo
 exchange in 2D and 3D. Read the relevant source and tests before editing.
 The current source is authoritative. `../REDESIGN_PLAN.md` (workspace parent, not
 in this repo) gives design context and may describe features that do not exist yet.
@@ -11,7 +11,7 @@ and `docs/AGENTS.md`. Task playbooks live in `.agents/skills/`.
 
 ## Repository map
 
-Core (`src/`, included in this order by `src/HaloArrays.jl`):
+Core (`src/`, included in this order by `src/HaloGrids.jl`):
 
 - `topology.jl`: `Topology`, `topology`, `subtopology`, `has_neighbor`.
 - `field.jl`: `Field` with per-dimension `halowidths` and `overlaps`.
@@ -32,12 +32,12 @@ Core (`src/`, included in this order by `src/HaloArrays.jl`):
 Optional backends. Each extension file in `ext/` is thin glue that `include`s
 real code from a same-named `src/*Ext/` directory:
 
-- `HaloArraysCUDAExt` + `src/CUDAExt/`: tested on this machine (GPU present).
-- `HaloArraysAMDGPUExt` + `src/AMDGPUExt/`: mirror of CUDA, untested (no AMD GPU).
-- `HaloArraysCellArraysExt` + `src/CellArraysExt/`: decomposes a `CellArray` into
+- `HaloGridsCUDAExt` + `src/CUDAExt/`: tested on this machine (GPU present).
+- `HaloGridsAMDGPUExt` + `src/AMDGPUExt/`: mirror of CUDA, untested (no AMD GPU).
+- `HaloGridsCellArraysExt` + `src/CellArraysExt/`: decomposes a `CellArray` into
   component views and reuses the normal `Field` path.
-- `HaloArraysHDF5Ext` + `src/HDF5Ext/`, `HaloArraysWriteVTKExt` + `src/WriteVTKExt/`.
-- `HaloArraysParallelStencilExt`: `@hide_halo_communication` implementation.
+- `HaloGridsHDF5Ext` + `src/HDF5Ext/`, `HaloGridsWriteVTKExt` + `src/WriteVTKExt/`.
+- `HaloGridsParallelStencilExt`: `@hide_halo_communication` implementation.
 - Device selection (rank-to-GPU) and CUDA/ROCm-aware MPI are out of scope.
 
 Other directories:

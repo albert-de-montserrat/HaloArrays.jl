@@ -49,7 +49,7 @@ function topology(dims::NTuple{N,Integer};
                    periods::NTuple{N,Bool} = ntuple(_ -> false, N),
                    disp::Integer = 1,
                    reorder::Bool = true) where {N}
-    N in (2, 3) || error("HaloArrays supports only 2D and 3D topologies; got N=$N from dims=$dims.")
+    N in (2, 3) || error("HaloGrids supports only 2D and 3D topologies; got N=$N from dims=$dims.")
     any(<(0), dims) && error("topology dims cannot be negative; got dims=$dims.")
     MPI.Initialized() || MPI.Init()
 

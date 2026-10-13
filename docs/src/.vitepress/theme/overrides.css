@@ -1,4 +1,4 @@
-/* HaloArrays.jl theme.
+/* HaloGrids.jl theme.
    Loaded after DocumenterVitepress' style.css, so these rules win. Only this file is
    customized; the rest of the theme (index.ts, style.css, docstrings.css) is the
    DocumenterVitepress default, which keeps upgrades painless.

@@ -4,7 +4,7 @@
 of the Cartesian communicator. All ranks participate in the call.
 
 ```julia
-using HaloArrays
+using HaloGrids
 import MPI
 
 t = topology((0, 0))

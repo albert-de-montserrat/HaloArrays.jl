@@ -1,5 +1,5 @@
 """
-Module HaloArrays
+Module HaloGrids
 
 A ground-up redesign of ImplicitGlobalGrid.jl's halo-exchange core: explicit
 `Grid` objects instead of module-global mutable state, per-grid-owned
@@ -8,7 +8,7 @@ halo-width concept instead of `overlaps`/`halowidths`, and an explicit
 two-phase `halo_exchange_start!`/`halo_exchange_finish!` API for
 communication/compute overlap.
 
-See `REDESIGN_PLAN.md` (in the ImplicitGlobalGrid.jl / HaloArrays.jl repo root)
+See `REDESIGN_PLAN.md` (in the ImplicitGlobalGrid.jl / HaloGrids.jl repo root)
 for the full design rationale and phased build plan this package follows.
 
 # Core types
@@ -28,7 +28,7 @@ for the full design rationale and phased build plan this package follows.
 - [`save_hdf5`](@ref)/[`load_hdf5!`](@ref) (optional, requires `using HDF5`)
 - [`save_pvtk`](@ref) (optional, requires `using WriteVTK`)
 """
-module HaloArrays
+module HaloGrids
 
 import MPI
 

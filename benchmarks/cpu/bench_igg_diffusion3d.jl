@@ -1,8 +1,8 @@
 # CPU (multi-threaded) benchmark worker for ImplicitGlobalGrid.jl: same
-# Cp-weighted 3D heat diffusion physics as bench_haloarrays_diffusion3d.jl
+# Cp-weighted 3D heat diffusion physics as bench_halogrids_diffusion3d.jl
 # (its twin, see its header comment for the full rationale and T_eff
 # read/write count), using the same ParallelStencil `Threads` kernels as the
-# HaloArrays worker. This is the blocking baseline: the full temperature
+# HaloGrids worker. This is the blocking baseline: the full temperature
 # update and wall kernels complete before `update_halo!`. Run with
 # `julia -tN` selecting the ParallelStencil thread count. Rank 0 saves one
 # result record to the JLD2 path in `ARGS[3]`.

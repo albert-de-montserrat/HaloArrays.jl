@@ -1,4 +1,4 @@
-using HaloArrays
+using HaloGrids
 import MPI
 
 MPI.Init()

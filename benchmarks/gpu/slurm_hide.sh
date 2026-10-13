@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SLURM submission + matrix driver for the hide-communication GPU comparison
-# (bench_haloarrays_hide.jl vs bench_igg_hide.jl). Submit with:
+# (bench_halogrids_hide.jl vs bench_igg_hide.jl). Submit with:
 #   sbatch slurm_hide.sh
 #
 # See slurm_diffusion3d.sh's header comment for the cluster/env-var
@@ -34,7 +34,7 @@ OUT=results_hide_gpu.jld2
 rm -f "$OUT"
 
 for n in "${NTASKS_MATRIX[@]}"; do
-  for script in bench_haloarrays_hide.jl bench_igg_hide.jl; do
+  for script in bench_halogrids_hide.jl bench_igg_hide.jl; do
     echo "-- $script  gpus=$n  local_N=${N}^3 --" >&2
     if ! srun -n "$n" --uenv "$UENV" --view=juliaup julia --project=. --startup-file=no "$script" "$N" "$NITER" "$OUT" 2>err.log; then
       echo "   FAILED (see err.log):" >&2

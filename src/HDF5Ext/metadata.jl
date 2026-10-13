@@ -5,7 +5,7 @@
 # fields with independent halowidths/dtype: metadata must be looked up
 # per-dataset, not per-group.
 
-using HaloArrays
+using HaloGrids
 using HDF5
 
 const HDF5_IO_SCHEMA_VERSION = "0.2.0"
@@ -50,8 +50,8 @@ end
 Build the `HDF5Metadata` bundle for `field` as it will be (or was) written
 under `field_name`.
 """
-function metadata_from_grid(grid::HaloArrays.Grid{N}, field::HaloArrays.Field{T,N}, field_name::AbstractString) where {T,N}
-    nglobal_sizes = ntuple(d -> HaloArrays.nglobal(grid, field, d), N)
+function metadata_from_grid(grid::HaloGrids.Grid{N}, field::HaloGrids.Field{T,N}, field_name::AbstractString) where {T,N}
+    nglobal_sizes = ntuple(d -> HaloGrids.nglobal(grid, field, d), N)
     return HDF5Metadata(
         HDF5_IO_SCHEMA_VERSION,
         Tuple(grid.topology.dims),
@@ -72,7 +72,7 @@ naming the saved and requested values for the first mismatch found.
 With `repartition=true`, allow different topology dimensions and local sizes,
 while requiring the same global shape, halo widths, type, and periodicity.
 """
-function validate_metadata!(meta::HDF5Metadata, grid::HaloArrays.Grid{N}, field::HaloArrays.Field{T,N};
+function validate_metadata!(meta::HDF5Metadata, grid::HaloGrids.Grid{N}, field::HaloGrids.Field{T,N};
                             repartition::Bool = false) where {T,N}
     meta.schema_version == HDF5_IO_SCHEMA_VERSION || error(
         "HDF5 schema mismatch for field \"$(meta.field_name)\": file has " *
@@ -86,7 +86,7 @@ function validate_metadata!(meta::HDF5Metadata, grid::HaloArrays.Grid{N}, field:
     Tuple(meta.halowidths) == Tuple(field.halowidths) || error(
         "halowidths mismatch for field \"$(meta.field_name)\": file has " *
         "$(meta.halowidths), field has $(field.halowidths).")
-    nglobal_sizes = ntuple(d -> HaloArrays.nglobal(grid, field, d), N)
+    nglobal_sizes = ntuple(d -> HaloGrids.nglobal(grid, field, d), N)
     Tuple(meta.nglobal) == nglobal_sizes || error(
         "nglobal mismatch for field \"$(meta.field_name)\": file has $(meta.nglobal), " *
         "grid/field imply $(nglobal_sizes).")

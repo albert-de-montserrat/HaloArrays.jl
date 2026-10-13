@@ -1,5 +1,5 @@
 # Radius-one axial stencil: all face exchanges may overlap the inner box.
-using MPI, HaloArrays
+using MPI, HaloGrids
 
 function stencil_box!(out, A, ir, jr, kr)
     @inbounds for k in kr, j in jr, i in ir

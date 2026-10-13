@@ -1,9 +1,9 @@
-module HaloArraysParallelStencilExt
+module HaloGridsParallelStencilExt
 
-using HaloArrays
+using HaloGrids
 using ParallelStencil
 
-boundary_width(fields...) = ntuple(d -> maximum(HaloArrays.halowidths(f)[d] for f in fields), ndims(first(fields)))
+boundary_width(fields...) = ntuple(d -> maximum(HaloGrids.halowidths(f)[d] for f in fields), ndims(first(fields)))
 
 function can_overlap(widths, ranges)
     length(widths) == length(ranges) || throw(ArgumentError("boundary_width must match the dimensionality of ranges"))
@@ -34,7 +34,7 @@ function hide_halo_communication_expr(args...)
             ParallelStencil.@parallel $launch_ranges $kernel
             $(boundary_updates...)
             ParallelStencil.@synchronize
-            HaloArrays.update_halo!($grid, $(fields...))
+            HaloGrids.update_halo!($grid, $(fields...))
         else
             $partition_ranges = ParallelStencil.ParallelKernel.promote_ranges($launch_ranges)
             $outer = ParallelStencil.ParallelKernel.get_ranges_outer($widths, $partition_ranges)
@@ -44,13 +44,13 @@ function hide_halo_communication_expr(args...)
             end
             $(boundary_updates...)
             ParallelStencil.@synchronize
-            $handle = HaloArrays.halo_exchange_start!($grid, $(fields...))
+            $handle = HaloGrids.halo_exchange_start!($grid, $(fields...))
             try
                 for $range in $inner
                     ParallelStencil.@parallel $range $kernel
                 end
             finally
-                HaloArrays.halo_exchange_finish!($handle)
+                HaloGrids.halo_exchange_finish!($handle)
             end
         end
     end)

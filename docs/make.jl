@@ -1,13 +1,13 @@
 using Documenter
 using DocumenterVitepress
-using HaloArrays
+using HaloGrids
 
 makedocs(;
-    sitename = "HaloArrays.jl",
+    sitename = "HaloGrids.jl",
     authors = "Albert de Montserrat",
-    modules = [HaloArrays],
+    modules = [HaloGrids],
     format = DocumenterVitepress.MarkdownVitepress(
-        repo = "github.com/albert-de-montserrat/HaloArrays.jl",
+        repo = "github.com/albert-de-montserrat/HaloGrids.jl",
         devbranch = "master",
         devurl = "dev",
     ),
@@ -35,7 +35,7 @@ makedocs(;
 )
 
 DocumenterVitepress.deploydocs(;
-    repo = "github.com/albert-de-montserrat/HaloArrays.jl",
+    repo = "github.com/albert-de-montserrat/HaloGrids.jl",
     target = joinpath(@__DIR__, "build"),
     branch = "gh-pages",
     devbranch = "master",

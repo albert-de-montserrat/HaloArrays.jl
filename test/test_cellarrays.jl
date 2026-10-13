@@ -1,5 +1,5 @@
 # Correctness tests for the CellArrays extension (src/CellArraysExt/,
-# ext/HaloArraysCellArraysExt.jl).
+# ext/HaloGridsCellArraysExt.jl).
 #
 # Strategy: same analytic-rank-fill idea as test_halo_exchange.jl's
 # expected_value/check_halo, extended to distinguish cell components: cell
@@ -13,7 +13,7 @@
 push!(LOAD_PATH, joinpath(@__DIR__, "..", "src"))
 using Test
 import MPI
-using HaloArrays
+using HaloGrids
 using CellArrays: CellArrays, CPUCellArray
 using StaticArrays: SMatrix
 

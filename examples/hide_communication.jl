@@ -12,7 +12,7 @@ J# Demonstrates hiding the last dimension's halo communication behind
 # whose stencil never touches a dimension-2 halo column can be updated while
 # that exchange is still outstanding; only the two columns immediately next
 # to the dimension-2 edges must wait for halo_exchange_finish!.
-using HaloArrays
+using HaloGrids
 import MPI
 
 MPI.Init()

@@ -5,7 +5,7 @@ one result, across every rank sharing a `Topology`'s (or `Grid`'s)
 communicator. All ranks participate in the call.
 
 ```julia
-using HaloArrays
+using HaloGrids
 import MPI
 
 t = topology((0, 0))

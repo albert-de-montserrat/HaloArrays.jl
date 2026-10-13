@@ -13,7 +13,7 @@
 #   directly), but it isn't implemented here since Microsoft MPI (this
 #   project's only local MPI) isn't CUDA-aware and the path can't be validated
 #   without one.
-module HaloArraysCUDAExt
+module HaloGridsCUDAExt
     include(joinpath(@__DIR__, "..", "src", "CUDAExt", "shared.jl"))
     include(joinpath(@__DIR__, "..", "src", "CUDAExt", "halo_exchange.jl"))
 end

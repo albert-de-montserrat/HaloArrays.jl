@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Drives bench_haloarrays.jl / bench_igg.jl across a {nprocs} x {N} matrix and
+# Drives bench_halogrids.jl / bench_igg.jl across a {nprocs} x {N} matrix and
 # collects their single-line CSV output into results.csv.
 #
 # Both benchmark workers do the same thing: a 3D, fully periodic domain,
@@ -22,7 +22,7 @@ echo "pkg,nprocs,N,niter,time_s,bytes,gctime_s,pauses,full_sweep" > "$OUT"
 
 for n in "${NPROCS_MATRIX[@]}"; do
   for N in "${SIZES[@]}"; do
-    for script in bench_haloarrays.jl bench_igg.jl; do
+    for script in bench_halogrids.jl bench_igg.jl; do
       echo "-- $script  nprocs=$n  N=$N --" >&2
       line=$("$MPIEXEC" -n "$n" julia --startup-file=no "$script" "$N" "$NITER" 2>err.log | grep '^RESULT' || true)
       if [[ -z "$line" ]]; then

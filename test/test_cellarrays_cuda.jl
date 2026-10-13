@@ -1,12 +1,12 @@
 # Correctness test for the CellArrays extension against a CuCellArray
 # (src/CellArraysExt/halo_exchange.jl + src/CUDAExt/).
 #
-# The whole point of this file: HaloArraysCellArraysExt writes *no*
+# The whole point of this file: HaloGridsCellArraysExt writes *no*
 # CUDA-specific code at all — it only decomposes a CellArray into per-
-# component views via CellArrays.field(A,(j,)) and hands them to HaloArrays'
+# component views via CellArrays.field(A,(j,)) and hands them to HaloGrids'
 # existing Field/exchange machinery. For a CuCellArray those component views
 # are expected to already fall within CUDA.AnyCuArray's dispatch union
-# (a view/reshape of a CuArray), meaning the existing HaloArraysCUDAExt
+# (a view/reshape of a CuArray), meaning the existing HaloGridsCUDAExt
 # pack_target/stage_send!/stage_recv! methods should apply automatically. If
 # that expectation is wrong, this file fails loud (either a MethodError from
 # missing GPU dispatch, or a CUDA scalar-indexing error) rather than silently
@@ -27,7 +27,7 @@ if !CUDA.functional()
     exit(0)
 end
 
-using HaloArrays
+using HaloGrids
 using CellArrays: CellArrays, CPUCellArray
 using StaticArrays: SMatrix
 

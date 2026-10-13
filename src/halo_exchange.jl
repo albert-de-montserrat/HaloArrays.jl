@@ -38,7 +38,7 @@ boundary values on internal process interfaces. As with
 can overlap the inner launch; earlier dimensions finish synchronously.
 """
 macro hide_halo_communication(args...)
-    ext = Base.get_extension(HaloArrays, :HaloArraysParallelStencilExt)
+    ext = Base.get_extension(HaloGrids, :HaloGridsParallelStencilExt)
     ext === nothing && error("@hide_halo_communication requires ParallelStencil")
     return ext.hide_halo_communication_expr(args...)
 end

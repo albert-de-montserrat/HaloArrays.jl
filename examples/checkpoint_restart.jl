@@ -1,6 +1,6 @@
 # Run with the test project, which includes the optional HDF5 dependency.
 # Save on one rank count, then load the same file on another (see the I/O guide).
-using HaloArrays
+using HaloGrids
 using HDF5
 import MPI
 

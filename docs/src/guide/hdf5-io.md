@@ -3,11 +3,11 @@
 `save_hdf5`/`load_hdf5!` write and read `Field` data to/from a single shared
 HDF5 file, using the `Grid`'s Cartesian topology to place each rank's block
 at its correct offset. This is an optional extension: it activates only once
-`HDF5` is loaded alongside `HaloArrays`.
+`HDF5` is loaded alongside `HaloGrids`.
 
 ```julia
-using HaloArrays
-using HDF5   # loads HaloArraysHDF5Ext
+using HaloGrids
+using HDF5   # loads HaloGridsHDF5Ext
 
 t = topology((0, 0))
 g = grid(t, (66, 66))
@@ -95,7 +95,7 @@ multiple fields must all be compatible with the destination grid's local size.
 Neighbor halos remain untouched during loading: call `update_halo!` before
 using them. HDF5 I/O still requires CPU arrays.
 
-The runnable [`checkpoint_restart.jl`](https://github.com/albert-de-montserrat/HaloArrays.jl/blob/master/examples/checkpoint_restart.jl)
+The runnable [`checkpoint_restart.jl`](https://github.com/albert-de-montserrat/HaloGrids.jl/blob/master/examples/checkpoint_restart.jl)
 example saves a position-dependent field and checks every cell after restart.
 From this repository, with the test project instantiated and an MPI launcher
 matching MPI.jl, run:

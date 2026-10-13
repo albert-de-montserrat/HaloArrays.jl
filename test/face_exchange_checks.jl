@@ -1,6 +1,6 @@
 # Included by the CPU and CUDA face-exchange workers. The expected value is
 # computed from Cartesian coordinates and source indices, independently of
-# packing helpers. Include after using Test, MPI, and HaloArrays.
+# packing helpers. Include after using Test, MPI, and HaloGrids.
 function face_initial(::Type{T}, rank, shape) where {T}
     return reshape(T[T(1_000_000rank + i) for i in 1:prod(shape)], shape)
 end

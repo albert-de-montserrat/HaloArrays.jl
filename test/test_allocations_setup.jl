@@ -35,7 +35,7 @@
 push!(LOAD_PATH, joinpath(@__DIR__, "..", "src"))
 using Test
 import MPI
-using HaloArrays
+using HaloGrids
 
 function run_setup_allocation_tests()
     MPI.Init()

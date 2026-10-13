@@ -1,6 +1,6 @@
 ---
 name: update-docs
-description: Update HaloArrays.jl documentation, docstrings, guide pages, or runnable examples and build the Documenter/VitePress site. Use when public behavior, signatures, or examples change.
+description: Update HaloGrids.jl documentation, docstrings, guide pages, or runnable examples and build the Documenter/VitePress site. Use when public behavior, signatures, or examples change.
 ---
 
 # Update docs

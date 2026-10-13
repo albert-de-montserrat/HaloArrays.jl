@@ -1,6 +1,6 @@
 ---
 name: change-halo-exchange
-description: Playbook for editing HaloArrays packing, unpacking, tags, dimension ordering, face exchange, ExchangeCache, or the start/finish API. Use before touching src/halo_exchange.jl, src/face_exchange.jl, src/exchange_cache.jl, or src/grid.jl.
+description: Playbook for editing HaloGrids packing, unpacking, tags, dimension ordering, face exchange, ExchangeCache, or the start/finish API. Use before touching src/halo_exchange.jl, src/face_exchange.jl, src/exchange_cache.jl, or src/grid.jl.
 ---
 
 # Change halo exchange

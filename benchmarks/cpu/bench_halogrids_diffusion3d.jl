@@ -1,5 +1,5 @@
-# CPU (multi-threaded) benchmark worker for HaloArrays.jl: a ParallelStencil
-# `Threads`-backend port of HaloArrays.jl/examples/diffusion3D.jl's
+# CPU (multi-threaded) benchmark worker for HaloGrids.jl: a ParallelStencil
+# `Threads`-backend port of HaloGrids.jl/examples/diffusion3D.jl's
 # Cp-weighted 3D heat diffusion physics (energy-conservation assertion kept
 # as a correctness gate before timing, checked after warmup rather than
 # after the full run so the gate is cheap relative to a large `niter`),
@@ -15,14 +15,14 @@
 # Both workers use the same explicit ParallelStencil `Threads` kernels
 # inside their time-stepping functions. Initial conditions are built
 # directly as plain host `Array` comprehensions — no device upload step is
-# needed here (see gpu/bench_haloarrays_diffusion3d.jl for the CUDA sibling,
+# needed here (see gpu/bench_halogrids_diffusion3d.jl for the CUDA sibling,
 # which does need one).
 import Pkg
 Pkg.activate(joinpath(@__DIR__); io=devnull)
 using ParallelStencil
 @init_parallel_stencil(Threads, Float64, 3)
 import MPI
-using HaloArrays
+using HaloGrids
 include(joinpath(@__DIR__, "metrics_common.jl"))
 
 @parallel_indices (i, j, k) function flux_x!(qx, T, lam, dx)
@@ -152,7 +152,7 @@ end
     E1 = total_energy()
     rel_drift = abs(E1 - E0) / abs(E0)
     rel_drift < 1e-6 || error(
-        "diffusion3D (HaloArrays, CPU): energy drifted by a relative $rel_drift after " *
+        "diffusion3D (HaloGrids, CPU): energy drifted by a relative $rel_drift after " *
         "$warmup warmup steps (correctness gate failed).")
 
     GC.gc()
@@ -169,7 +169,7 @@ end
     peakbw = rank == 0 ? measure_peak_bandwidth_gbs() : 0.0
 
     if rank == 0
-        save_result(output, "HaloArrays", nprocs, N, niter, stats, gpu_bytes, teff, peakbw)
+        save_result(output, "HaloGrids", nprocs, N, niter, stats, gpu_bytes, teff, peakbw)
     end
     MPI.Barrier(comm)
     MPI.Finalize()

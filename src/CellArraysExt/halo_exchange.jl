@@ -1,5 +1,5 @@
-import HaloArrays
-import HaloArrays: Grid, ExchangeHandle, _halo_exchange_start!, halo_exchange_finish!
+import HaloGrids
+import HaloGrids: Grid, ExchangeHandle, _halo_exchange_start!, halo_exchange_finish!
 using CellArrays: CellArrays, CellArray, ArrayCell, celllength
 
 # --- B=0 (default, GPU-optimal): one combined Field, batched into a single
@@ -8,7 +8,7 @@ using CellArrays: CellArrays, CellArray, ArrayCell, celllength
 # CellArrays.jl stores every cell's component `j` contiguously for B=0 (`A.data`
 # is `(prod(dims), ncomp, 1)`), so `reshape(A.data, (dims..., ncomp))` is a
 # genuine zero-copy view with the component axis trailing every grid
-# dimension. HaloArrays' `sendrange`/`recvrange`/`halo_length`
+# dimension. HaloGrids' `sendrange`/`recvrange`/`halo_length`
 # (src/halo_exchange.jl) already loop over a *field's own* `ndims`, not the
 # grid's, and only ever touch a dimension that's actually named in `dims` — so
 # a trailing, never-named dimension is automatically "always full range,
@@ -34,7 +34,7 @@ using CellArrays: CellArrays, CellArray, ArrayCell, celllength
 function cellarray_field_batched(A::CellArray{T,N,0}, halowidths::NTuple{N,Int}, overlaps::NTuple{N,Int} = 2 .* halowidths) where {T<:ArrayCell,N}
     ncomp = celllength(A)
     flat = reshape(A.data, (A.dims..., ncomp))
-    return HaloArrays.field(flat; halowidths=(halowidths..., 1), overlaps=(overlaps..., 2))
+    return HaloGrids.field(flat; halowidths=(halowidths..., 1), overlaps=(overlaps..., 2))
 end
 
 # --- B=1 (AoS): per-component decomposition, unchanged from the original design. ---
@@ -43,7 +43,7 @@ end
 # `A.data`, not trailing (CellArrays.jl's own `plain_flat` reflects this: it
 # puts `celllength` first for B=1). Getting "grid dims first, component axis
 # last" would need an actual data permutation, not a free reshape, defeating
-# the zero-copy point of batching — and HaloArrays threads a single `dim`
+# the zero-copy point of batching — and HaloGrids threads a single `dim`
 # index through both `topology.neighbors[dim]` (grid-sized) and a field's own
 # `sendrange`/`recvrange` (field-sized), so the exchanged dimensions must
 # occupy the field's *leading* `N` slots to line up with the grid's own
@@ -53,12 +53,12 @@ end
 # view, so still no new pack/unpack code), just without the single-message
 # win B=0 gets.
 function cellarray_fields_percomponent(A::CellArray{T,N}, halowidths::NTuple{N,Int}, overlaps::NTuple{N,Int} = 2 .* halowidths) where {T<:ArrayCell,N}
-    return ntuple(j -> HaloArrays.field(CellArrays.field(A, (j,)); halowidths=halowidths, overlaps=overlaps), celllength(A))
+    return ntuple(j -> HaloGrids.field(CellArrays.field(A, (j,)); halowidths=halowidths, overlaps=overlaps), celllength(A))
 end
 
 function cellarray_fields_percomponent(A::CellArray{T,N}, ::NTuple{N,Int}, ::NTuple{N,Int} = ntuple(_ -> 2, N)) where {T<:Number,N}
     error(
-        "HaloArrays' CellArrays extension only supports multi-component cell types " *
+        "HaloGrids' CellArrays extension only supports multi-component cell types " *
         "(SArray/FieldArray); got a CellArray{$T,...} with a scalar (Number) cell type, " *
         "which has no zero-copy per-component view to decompose. Wrap the underlying " *
         "array with `field(A; halowidths)` and use plain `update_halo!` instead.")
@@ -95,14 +95,14 @@ win) — `CellArrays.jl` provides no zero-copy view for any other blocklength,
 so nothing else is supported.
 
 A `CellArray` cannot currently be mixed inline with plain `Field`/`Array`
-arguments in one call (unlike HaloArrays' `Union{Field,AbstractArray}...`
+arguments in one call (unlike HaloGrids' `Union{Field,AbstractArray}...`
 convenience form) — call this and any other fields' `update_halo!` calls
 separately.
 
 `region=:faces` exchanges only faces in the grid dimensions, retaining all
 batched components and leaving halo edges/corners unchanged.
 """
-function HaloArrays.update_halo!(grid::Grid{N}, A::CellArray{T,N};
+function HaloGrids.update_halo!(grid::Grid{N}, A::CellArray{T,N};
         halowidths::NTuple{N,Integer} = ntuple(_ -> 1, N),
         overlaps::NTuple{N,Integer} = 2 .* halowidths,
         dims::Tuple = ntuple(identity, N), region::Symbol = :full) where {T,N}
@@ -119,7 +119,7 @@ exchange and returns a handle for [`halo_exchange_finish!`](@ref) to
 complete. See `update_halo!`'s docstring for the `CellArray`-specific
 restrictions and the `B=0`-batched/`B=1`-per-component split.
 """
-function HaloArrays.halo_exchange_start!(grid::Grid{N}, A::CellArray{T,N};
+function HaloGrids.halo_exchange_start!(grid::Grid{N}, A::CellArray{T,N};
         halowidths::NTuple{N,Integer} = ntuple(_ -> 1, N),
         overlaps::NTuple{N,Integer} = 2 .* halowidths,
         dims::Tuple = ntuple(identity, N), region::Symbol = :full) where {T,N}

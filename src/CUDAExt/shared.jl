@@ -1,8 +1,8 @@
-import HaloArrays
-import HaloArrays: ExchangeCache, typed_buf!
+import HaloGrids
+import HaloGrids: ExchangeCache, typed_buf!
 using CUDA
 
-HaloArrays.is_cuarray(::AnyCuArray) = true
+HaloGrids.is_cuarray(::AnyCuArray) = true
 
 """
     ViewCache
@@ -54,10 +54,10 @@ end
 
 Per-`Grid`-owned device-buffer pool for GPU halo exchange, lazily constructed
 into `ExchangeCache.gpu_cache` (see `src/backend.jl` and `src/exchange_cache.jl`
-in HaloArrays.jl) on this grid's first `CuArray` field — never module-global,
+in HaloGrids.jl) on this grid's first `CuArray` field — never module-global,
 same rule as `ExchangeCache` itself. Structurally mirrors `ExchangeCache`'s own
 `sendbufs`/`recvbufs`: one raw byte buffer per `(field position, neighbor)`,
-grown on demand by the same `typed_buf!` HaloArrays already uses for its host
+grown on demand by the same `typed_buf!` HaloGrids already uses for its host
 buffers (it is generic over `AbstractVector{UInt8}` for exactly this reason).
 `sendviews`/`recvviews` cache the typed view derived from each raw buffer —
 see `ViewCache` above.

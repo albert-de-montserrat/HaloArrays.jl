@@ -37,11 +37,11 @@ packing, tags, or ordering.
 - Edit `src/CUDAExt/` and `src/AMDGPUExt/` together. AMDGPU cannot be tested here:
   say so in the report.
 - Files in `src/*Ext/` are `include`d by `ext/*.jl`. They are not part of the main
-  module and do not appear in `src/HaloArrays.jl`.
+  module and do not appear in `src/HaloGrids.jl`.
 
 ## Public API
 
 - Add new exports to the `export` line at the top of the defining file and to the
-  module docstring in `src/HaloArrays.jl`.
+  module docstring in `src/HaloGrids.jl`.
 - Every exported name needs a docstring and must appear in a `@docs` block in
   `docs/src/api.md`.

@@ -1,4 +1,4 @@
-using Test, MPI, HaloArrays
+using Test, MPI, HaloGrids
 include("face_exchange_checks.jl")
 
 MPI.Init()

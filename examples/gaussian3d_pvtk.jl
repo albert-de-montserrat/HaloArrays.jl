@@ -4,7 +4,7 @@
 # ParaView to hand-verify that save_pvtk's halo-inclusive overlap convention
 # (see the pvtk I/O guide) really does stitch into one seamless volume with
 # no gaps or double-counted cells at rank boundaries.
-using HaloArrays
+using HaloGrids
 using WriteVTK
 import MPI
 

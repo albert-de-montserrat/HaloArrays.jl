@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SLURM submission + matrix driver for the diffusion3D CPU comparison
-# Runs blocking and communication-hiding variants for both HaloArrays and
+# Runs blocking and communication-hiding variants for both HaloGrids and
 # ImplicitGlobalGrid. Submit with:
 #   sbatch slurm_diffusion3d.sh
 #
@@ -52,8 +52,8 @@ rm -f "${OUT_BASE%.jld2}"_n*.jld2
 
 for n in "${NTASKS_MATRIX[@]}"; do
   for script in \
-    bench_haloarrays_diffusion3d.jl \
-    bench_haloarrays_diffusion3d_hide.jl \
+    bench_halogrids_diffusion3d.jl \
+    bench_halogrids_diffusion3d_hide.jl \
     bench_igg_diffusion3d.jl \
     bench_igg_diffusion3d_hide.jl; do
     echo "-- $script  ranks=$n  threads/rank=$JULIA_NUM_THREADS  local_N=${N}^3 --" >&2

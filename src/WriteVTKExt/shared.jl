@@ -1,15 +1,15 @@
-# Shared WriteVTK/MPI extension helpers for HaloArrays.
+# Shared WriteVTK/MPI extension helpers for HaloGrids.
 #
 # Geometry note: unlike src/HDF5Ext/shared.jl's local_interior_range (which
 # trims halo cells that duplicate a neighbor's data), this extension writes
 # each rank's *entire* local array, halo included. Parallel VTK requires
 # neighboring pieces' extents to overlap at shared boundaries — per
 # WriteVTK's docs, "without it the full data cannot be visualised in
-# ParaView" — and since HaloArrays already keeps halo cells exactly in sync
+# ParaView" — and since HaloGrids already keeps halo cells exactly in sync
 # with each neighbor's real data via update_halo!, writing them is what
 # makes that overlap correct, not an extra step.
 
-using HaloArrays
+using HaloGrids
 import WriteVTK: pvtk_grid
 import MPI
 
@@ -18,7 +18,7 @@ import MPI
 
 Raised for save_pvtk usage and geometry problems specific to this extension
 (as opposed to a plain `error(...)` from validation shared with the rest of
-the package, e.g. `HaloArrays.check_fields`).
+the package, e.g. `HaloGrids.check_fields`).
 """
 struct PVTKIOError <: Exception
     msg::String
@@ -34,7 +34,7 @@ Same rationale and pattern as `HDF5Ext.require_cpu_array` — duplicated here
 rather than imported across extensions, so this extension stays
 independently loadable without `HDF5` installed (and vice versa).
 """
-function require_cpu_array(field::HaloArrays.Field, position::Integer)
+function require_cpu_array(field::HaloGrids.Field, position::Integer)
     field.data isa StridedArray || throw(PVTKIOError(
         "field at position $position wraps a $(typeof(field.data)), which is not a CPU " *
         "StridedArray; save_pvtk only ever touches host memory. Stage a device array to " *
@@ -57,14 +57,14 @@ Neighboring ranks' extents overlap by exactly `2*field.halowidths[d]`
 points in every non-periodic dimension (periodic topologies are rejected
 before this is ever called — see `check_pvtk_batch`).
 """
-function local_and_global_extents(grid::HaloArrays.Grid{N}, field::HaloArrays.Field{T,N}) where {T,N}
+function local_and_global_extents(grid::HaloGrids.Grid{N}, field::HaloGrids.Field{T,N}) where {T,N}
     field.overlaps == 2 .* field.halowidths || throw(PVTKIOError(
         "save_pvtk only supports fields with the default overlaps (2*halowidths); " *
         "got overlaps=$(field.overlaps), halowidths=$(field.halowidths)."))
     local_range = ntuple(d -> 1:grid.nlocal[d], N)
     global_extent = ntuple(N) do d
-        lo = HaloArrays.iglobal(grid, field, d, 1; wrap_periodic = false)
-        hi = HaloArrays.iglobal(grid, field, d, grid.nlocal[d]; wrap_periodic = false)
+        lo = HaloGrids.iglobal(grid, field, d, 1; wrap_periodic = false)
+        hi = HaloGrids.iglobal(grid, field, d, grid.nlocal[d]; wrap_periodic = false)
         lo:hi
     end
     return local_range, global_extent
@@ -79,12 +79,12 @@ local array (halo included) at spacing `dx`. Built directly from
 global coordinate vector — algebraically identical (both `coord_g` and
 `iglobal` are affine in the local index), but avoids allocating anything
 global-sized. Always an `AbstractRange`, so WriteVTK always infers the
-uniform-spacing "image data" (`.vti`/`.pvti`) format — `HaloArrays.Grid` has
+uniform-spacing "image data" (`.vti`/`.pvti`) format — `HaloGrids.Grid` has
 no non-uniform-spacing concept to represent as a rectilinear/structured grid
 instead.
 """
-function local_coordinate_range(grid::HaloArrays.Grid{N}, field::HaloArrays.Field{T,N}, dim::Integer, dx::Real) where {T,N}
-    x0 = HaloArrays.coord_g(grid, field, dim, 1, dx)
+function local_coordinate_range(grid::HaloGrids.Grid{N}, field::HaloGrids.Field{T,N}, dim::Integer, dx::Real) where {T,N}
+    x0 = HaloGrids.coord_g(grid, field, dim, 1, dx)
     return range(x0; step = Float64(dx), length = grid.nlocal[dim])
 end
 
@@ -100,7 +100,7 @@ same for all processes"). Uses a plain `MPI.Allgather` of fixed-size
 gather assuming an exact, non-overlapping tiling — the wrong tool here,
 since pvtk extents deliberately overlap).
 """
-function gather_extents(grid::HaloArrays.Grid{N}, field::HaloArrays.Field{T,N}) where {T,N}
+function gather_extents(grid::HaloGrids.Grid{N}, field::HaloGrids.Field{T,N}) where {T,N}
     _, global_extent = local_and_global_extents(grid, field)
     local_flat = Vector{Int}(undef, 2N)
     for d in 1:N
@@ -135,7 +135,7 @@ imply different global domain sizes. So unlike this package's other
 multi-field entry points, mixed halowidths cannot be supported here without
 silently writing at least one field's data at the wrong coordinates.
 """
-function require_uniform_halowidths(fields::NTuple{M,HaloArrays.Field}) where {M}
+function require_uniform_halowidths(fields::NTuple{M,HaloGrids.Field}) where {M}
     hw1 = fields[1].halowidths
     for i in 2:M
         fields[i].halowidths == hw1 || throw(PVTKIOError(
@@ -152,11 +152,11 @@ end
     check_pvtk_batch(grid, fields, names, dx)
 
 Validate a `save_pvtk` batch before any file is touched: dimensionality and
-shape (via `HaloArrays.check_fields`), unique names, CPU-only arrays,
+shape (via `HaloGrids.check_fields`), unique names, CPU-only arrays,
 uniform halowidths across the batch, a valid `dx`, and — critically — that
 the grid's topology is not periodic in any dimension.
 """
-function check_pvtk_batch(grid::HaloArrays.Grid{N}, fields::NTuple{M,HaloArrays.Field},
+function check_pvtk_batch(grid::HaloGrids.Grid{N}, fields::NTuple{M,HaloGrids.Field},
                            names::NTuple{M,AbstractString}, dx::NTuple{N,Real}) where {N,M}
     M >= 1 || throw(PVTKIOError("at least one field is required."))
     allunique(names) || throw(PVTKIOError(
@@ -176,6 +176,6 @@ function check_pvtk_batch(grid::HaloArrays.Grid{N}, fields::NTuple{M,HaloArrays.
         require_cpu_array(f, i)
     end
     require_uniform_halowidths(fields)
-    HaloArrays.check_fields(grid, fields)
+    HaloGrids.check_fields(grid, fields)
     return nothing
 end

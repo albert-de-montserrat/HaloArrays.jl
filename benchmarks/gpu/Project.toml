@@ -1,12 +1,12 @@
 [deps]
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
-HaloArrays = "8e9f1a5b-1c2d-4a3e-9f6b-2d7c8e4a9b1f"
+HaloGrids = "8e9f1a5b-1c2d-4a3e-9f6b-2d7c8e4a9b1f"
 ImplicitGlobalGrid = "4d7a3746-15be-11ea-1130-334b0c4f5fa0"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"
 ParallelStencil = "94395366-693c-11ea-3b26-d9b7aac5d958"
 
 [sources]
-HaloArrays = {path = "../.."}
+HaloGrids = {path = "../.."}
 ImplicitGlobalGrid = {path = "../../../ImplicitGlobalGrid.jl"}

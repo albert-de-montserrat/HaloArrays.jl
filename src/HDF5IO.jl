@@ -1,7 +1,7 @@
 export save_hdf5, load_hdf5!
 
 const HDF5EXT_INSTALL_MSG = "requires the optional HDF5 extension: run `using HDF5` " *
-    "(after `]add HDF5`) to enable HaloArraysHDF5Ext."
+    "(after `]add HDF5`) to enable HaloGridsHDF5Ext."
 
 """
     save_hdf5(grid::Grid, field::Field, path; name="field", group="/", mode="w")
@@ -15,7 +15,7 @@ reading it back.
 
 This is a stub method: calling it without `HDF5` loaded raises this error
 rather than a bare `MethodError`. Loading `HDF5` (`using HDF5`) resolves the
-call to `HaloArraysHDF5Ext`'s implementation via ordinary multiple dispatch —
+call to `HaloGridsHDF5Ext`'s implementation via ordinary multiple dispatch —
 the same "declare a stub in core, add methods from the extension" pattern as
 `is_cuarray`/`is_rocarray` in `backend.jl` — so no `Base.get_extension`
 lookup is needed at the call site.
@@ -46,7 +46,7 @@ neighbor halos remain untouched until `update_halo!`. The default retains
 strict checks of the saved topology dimensions and local size.
 
 This is a stub method, resolved the same way as [`save_hdf5`](@ref) once
-`using HDF5` loads `HaloArraysHDF5Ext`; see its docstring and the "MPI/HDF5
+`using HDF5` loads `HaloGridsHDF5Ext`; see its docstring and the "MPI/HDF5
 file I/O" guide for the full rationale.
 """
 load_hdf5!(::Grid, ::Union{Field,Tuple}, ::AbstractString; kwargs...) =

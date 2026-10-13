@@ -136,7 +136,7 @@ The macro expands this into the following schedule:
 2. Launch `update_temperature!` once for every outer slab.
 3. Execute the remaining boundary-condition launches.
 4. Synchronize ParallelStencil so halo packing sees completed outer values.
-5. Start the HaloArrays exchange for `Tf`.
+5. Start the HaloGrids exchange for `Tf`.
 6. Launch `update_temperature!` over the inner box.
 7. Finish the exchange in a `finally` clause.
 

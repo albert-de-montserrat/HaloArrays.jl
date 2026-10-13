@@ -1,4 +1,4 @@
-using Test, MPI, CUDA, HaloArrays
+using Test, MPI, CUDA, HaloGrids
 using CellArrays: CellArrays
 using StaticArrays: SMatrix
 include("face_cellarray_checks.jl")

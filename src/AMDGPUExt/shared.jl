@@ -1,8 +1,8 @@
-import HaloArrays
-import HaloArrays: ExchangeCache, typed_buf!
+import HaloGrids
+import HaloGrids: ExchangeCache, typed_buf!
 using AMDGPU
 
-HaloArrays.is_rocarray(::AnyROCArray) = true
+HaloGrids.is_rocarray(::AnyROCArray) = true
 
 """
     ViewCache

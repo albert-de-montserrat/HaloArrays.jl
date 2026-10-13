@@ -1,6 +1,6 @@
 # Shared metric-collection helpers for benchmarks/gpu/*.jl. `include`d (not
 # `using`d as a module) after `using CUDA, MPI` in each worker script — same
-# include-into-caller's-namespace pattern HaloArrays.jl's own CUDA extension
+# include-into-caller's-namespace pattern HaloGrids.jl's own CUDA extension
 # uses (src/CUDAExt/shared.jl + halo_exchange.jl), so `CUDA.*` below resolves
 # to whatever the including script already `using CUDA`'d.
 
@@ -20,7 +20,7 @@ t_eff_gbs(n_reads::Integer, n_writes::Integer, numel::Integer, elemsize::Integer
 # memory bandwidth directly, so "% of peak" in the results is grounded in an
 # actual measurement on the hardware the benchmark ran on, not a datasheet
 # figure — matches this project's "measured, don't guess" rule (see
-# HaloArrays.jl/REDESIGN_PLAN.md). Buffer is ~1 GiB of Float64, well past any
+# HaloGrids.jl/REDESIGN_PLAN.md). Buffer is ~1 GiB of Float64, well past any
 # GPU's L2 cache, so the copy is genuinely memory-bound regardless of how
 # small the actual problem size under test is.
 function measure_peak_bandwidth_gbs(; nrep::Integer=20)

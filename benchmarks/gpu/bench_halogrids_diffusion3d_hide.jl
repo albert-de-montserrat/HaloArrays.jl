@@ -1,5 +1,5 @@
-# GPU (CUDA) benchmark worker for HaloArrays.jl: a CUDA port of
-# HaloArrays.jl/examples/diffusion3D.jl's Cp-weighted 3D heat diffusion
+# GPU (CUDA) benchmark worker for HaloGrids.jl: a CUDA port of
+# HaloGrids.jl/examples/diffusion3D.jl's Cp-weighted 3D heat diffusion
 # physics (energy-conservation assertion kept as a correctness gate before
 # timing, checked after warmup rather than after the full run so the gate is
 # cheap relative to a large `niter`), instrumented for this directory's
@@ -11,7 +11,7 @@
 # T_eff: this kernel's ideal minimal fused version reads {T, Cp} and writes
 # {T} => n_reads=2, n_writes=1 (see metrics_common.jl for the formula).
 #
-# This variant uses HaloArrays' split-phase exchange macro. The outer-region
+# This variant uses HaloGrids' split-phase exchange macro. The outer-region
 # width is inferred from `Tf`'s halo widths; the macro updates that region and
 # the wall values, starts communication, updates the inner region while the
 # final-dimension exchange is pending, then finishes communication.
@@ -21,7 +21,7 @@ using CUDA
 using ParallelStencil
 @init_parallel_stencil(CUDA, Float64, 3)
 import MPI
-using HaloArrays
+using HaloGrids
 include(joinpath(@__DIR__, "metrics_common.jl"))
 
 @parallel_indices (i, j, k) function flux_x!(qx, T, lam, dx)
@@ -151,7 +151,7 @@ end
     E1 = total_energy()
     rel_drift = abs(E1 - E0) / abs(E0)
     rel_drift < 1e-6 || error(
-        "diffusion3D (HaloArrays, GPU): energy drifted by a relative $rel_drift after " *
+        "diffusion3D (HaloGrids, GPU): energy drifted by a relative $rel_drift after " *
         "$warmup warmup steps (correctness gate failed; not a GPU-precision quirk at this tolerance).")
 
     GC.gc()
@@ -170,7 +170,7 @@ end
     peakbw = rank == 0 ? measure_peak_bandwidth_gbs() : 0.0
 
     if rank == 0
-        save_result(output, "HaloArraysHide", nprocs, N, niter, stats, gpu_bytes, teff, peakbw)
+        save_result(output, "HaloGridsHide", nprocs, N, niter, stats, gpu_bytes, teff, peakbw)
     end
     MPI.Barrier(comm)
     MPI.Finalize()

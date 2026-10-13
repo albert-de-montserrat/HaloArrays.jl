@@ -1,6 +1,6 @@
 """
-Stub functions overridden by the CUDA/AMDGPU package extensions (`ext/HaloArraysCUDAExt.jl`,
-`ext/HaloArraysAMDGPUExt.jl`). Resolved via ordinary multiple dispatch on the array
+Stub functions overridden by the CUDA/AMDGPU package extensions (`ext/HaloGridsCUDAExt.jl`,
+`ext/HaloGridsAMDGPUExt.jl`). Resolved via ordinary multiple dispatch on the array
 type — e.g. the CUDA extension adds a method `is_cuarray(::CuArray) = true` — so,
 unlike the old package, no runtime "is the extension loaded" flag is needed at all.
 

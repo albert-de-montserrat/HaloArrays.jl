@@ -18,7 +18,7 @@ const THREADED_FILES = ["test_threaded_pack.jl", "test_face_exchange_threaded.jl
 # dependencies, so a subprocess launched with `--project=<pkg root>` (like
 # every other file below) cannot `using CUDA`/`using AMDGPU` at all. test/
 # has its own Project.toml (CUDA, AMDGPU, CellArrays, MPI, StaticArrays, plus
-# HaloArrays itself as a `[sources]`-path dependency) specifically so these
+# HaloGrids itself as a `[sources]`-path dependency) specifically so these
 # files can; see test_cuda.jl/test_amdgpu.jl, which each skip gracefully via
 # CUDA.functional()/AMDGPU.functional() when no usable GPU is present. Run
 # over a small nprocs matrix, same reasoning as THREADED_FILES: this project
@@ -47,7 +47,7 @@ istest(f) = endswith(f, ".jl") && startswith(basename(f), "test_")
 testfiles = sort(filter(istest, readdir(testdir; join=true)))
 
 nfail = 0
-printstyled("Testing package HaloArrays.jl\n"; bold=true, color=:white)
+printstyled("Testing package HaloGrids.jl\n"; bold=true, color=:white)
 
 exename = joinpath(Sys.BINDIR, Base.julia_exename())
 for f in testfiles
@@ -76,7 +76,7 @@ for f in testfiles
     if basename(f) in GPU_FILES
         # test/Project.toml's own Manifest.toml is gitignored (like the
         # package root's, only not force-committed the way that one is), so a
-        # fresh checkout/CI runner won't have CUDA/AMDGPU/HaloArrays resolved
+        # fresh checkout/CI runner won't have CUDA/AMDGPU/HaloGrids resolved
         # there yet. Rather than auto-instantiate here (a real, un-opted-into
         # time and network cost added to every plain test run/CI job — this
         # project's CI has so far deliberately stayed CPU-only), skip cleanly
