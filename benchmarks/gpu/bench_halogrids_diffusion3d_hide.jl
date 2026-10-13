@@ -92,7 +92,8 @@ end
     hw = 1
 
     t  = topology((0, 0, 0); comm=comm, periods=(false, false, true))
-    g  = grid(t, (nx, ny, nz); origin_on_vertex=true)
+    gpu_aware = env_flag("HG_GPU_AWARE_MPI")
+    g  = grid(t, (nx, ny, nz); origin_on_vertex=true, gpu_aware_mpi=gpu_aware)
     Tf = field(CUDA.zeros(Float64, nx, ny, nz); halowidths=(hw, hw, hw))
     T  = Tf.data
     rank == 0 && println(
@@ -170,7 +171,8 @@ end
     peakbw = rank == 0 ? measure_peak_bandwidth_gbs() : 0.0
 
     if rank == 0
-        save_result(output, "HaloGridsHide", nprocs, N, niter, stats, gpu_bytes, teff, peakbw)
+        save_result(output, gpu_aware ? "HaloGridsHideAware" : "HaloGridsHide", nprocs, N, niter, stats, gpu_bytes, teff, peakbw;
+            transport=gpu_aware ? "device buffers" : "host-staged")
     end
     MPI.Barrier(comm)
     MPI.Finalize()

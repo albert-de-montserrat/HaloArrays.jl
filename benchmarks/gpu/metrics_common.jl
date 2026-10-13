@@ -43,14 +43,27 @@ end
 
 using JLD2
 
-function save_result(path, pkg, nprocs, N, niter, stats, gpu_bytes, teff, peakbw)
+# Boolean environment switch (`1`/`0`/`true`/`false`); anything else is an error
+# so that a typo cannot silently select the wrong transport.
+function env_flag(name::AbstractString)
+    v = get(ENV, name, "0")
+    b = tryparse(Bool, v)
+    b === nothing && error("environment variable $name must be 0/1/true/false; got \"$v\"")
+    return b
+end
+
+# Repetition index of this run within a SLURM matrix (`BENCH_REP`, default 1).
+bench_rep() = parse(Int, get(ENV, "BENCH_REP", "1"))
+
+function save_result(path, pkg, nprocs, N, niter, stats, gpu_bytes, teff, peakbw;
+                     transport::AbstractString = "", rep::Integer = bench_rep())
     gs = stats.gcstats
     pct = peakbw > 0 ? 100 * teff / peakbw : NaN
     result = (; pkg=String(pkg), nprocs, N, niter, time_s=stats.time,
         bytes=stats.bytes, gctime_s=stats.gctime, pauses=gs.pause,
         full_sweep=gs.full_sweep, gpu_bytes, t_eff_gbs=teff,
-        peak_bw_gbs=peakbw, pct_of_peak=pct)
-    key = "result__$(pkg)__n$(nprocs)__N$(N)"
+        peak_bw_gbs=peakbw, pct_of_peak=pct, transport=String(transport), rep=Int(rep))
+    key = "result__$(pkg)__n$(nprocs)__N$(N)__r$(rep)"
     jldopen(path, "a+") do file
         file[key] = result
     end

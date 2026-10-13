@@ -78,6 +78,12 @@ end
 
     me, _, nprocs = init_global_grid(
         nx, ny, nz; periodx=0, periody=0, periodz=1, quiet=true)
+    # IGG reads IGG_CUDAAWARE_MPI itself but never checks that MPI accepts
+    # device buffers; fail here instead of crashing or corrupting halos.
+    gpu_aware = env_flag("IGG_CUDAAWARE_MPI")
+    gpu_aware && !MPI.has_cuda() && error(
+        "IGG_CUDAAWARE_MPI=1 but MPI.has_cuda() is false for $(MPI.identify_implementation()); " *
+        "with Cray MPICH set JULIA_MPI_HAS_CUDA=true and MPICH_GPU_SUPPORT_ENABLED=1.")
     me == 0 && println(
         "grid: local=($nx, $ny, $nz) global=($(nx_g()), $(ny_g()), $(nz_g())) nprocs=$nprocs")
     dx = lx / (nx_g() - 1)
@@ -151,7 +157,8 @@ end
     peakbw = me == 0 ? measure_peak_bandwidth_gbs() : 0.0
 
     if me == 0
-        save_result(output, "ImplicitGlobalGrid", nprocs, N, niter, stats, gpu_bytes, teff, peakbw)
+        save_result(output, gpu_aware ? "ImplicitGlobalGridAware" : "ImplicitGlobalGrid", nprocs, N, niter, stats, gpu_bytes, teff, peakbw;
+            transport=gpu_aware ? "device buffers" : "host-staged")
     end
     MPI.Barrier(MPI.COMM_WORLD)
     finalize_global_grid()

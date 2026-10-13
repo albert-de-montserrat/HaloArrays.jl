@@ -74,11 +74,9 @@ end
 function write_summary(all_results::Dict{String,Vector{<:NamedTuple}}, outpath::AbstractString)
     open(outpath, "w") do io
         println(io, "# HaloGrids.jl vs ImplicitGlobalGrid.jl — GPU blocking/overlap benchmark summary\n")
-        println(io, "**Read this before comparing raw numbers:** `IGG_CUDAAWARE_MPI=1` is set for these")
-        println(io, "runs (see slurm_*.sh) — ImplicitGlobalGrid gets real GPU-direct MPI transport on")
-        println(io, "this cluster, while HaloGrids.jl's CUDA extension always stages through host")
-        println(io, "memory (a documented scope gap, not a bug — see HaloGrids.jl/REDESIGN_PLAN.md).")
-        println(io, "This is a real, deliberate asymmetry in the numbers below, not a fairness bug.\n")
+        println(io, "Labels ending in `Aware` passed device buffers to MPI (`HG_GPU_AWARE_MPI=1` /")
+        println(io, "`IGG_CUDAAWARE_MPI=1`); other labels staged halo buffers through host memory.")
+        println(io, "Compare like with like before drawing conclusions.\n")
         for (tag, rows) in sort(collect(all_results); by=first)
             isempty(rows) && continue
             println(io, "## $tag\n")
