@@ -46,7 +46,9 @@ The examples use CPU arrays. `CuArray`/`ROCArray` fields work as drop-in
 replacements wherever a `Field` wraps an array (see `ext/HaloGridsCUDAExt.jl`
 and `ext/HaloGridsAMDGPUExt.jl`); the CUDA extension is tested against real
 hardware, while the AMDGPU extension is a structurally identical port that has
-not been run against real ROCm hardware yet. `save_hdf5`/`load_hdf5!` (see
+not been run against real ROCm hardware yet. GPU halo buffers are staged through host memory
+by default; `grid(...; gpu_aware_mpi=true)` passes them to a CUDA- or ROCm-aware
+MPI directly (see [GPU arrays and GPU-aware MPI](./guide/gpu.md)). `save_hdf5`/`load_hdf5!` (see
 `ext/HaloGridsHDF5Ext.jl` and the [MPI/HDF5 file I/O guide](./guide/hdf5-io.md))
 write and read `Field` data to/from a shared HDF5 file once `HDF5` is loaded;
 no parallel-HDF5 build is assumed, so ranks take turns writing rather than

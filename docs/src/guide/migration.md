@@ -15,6 +15,8 @@ JustRelax's staggered fields do not all meet that condition.
 | `update_halo!(A)` | `update_halo!(g, A)` | Shape equal to `g.nlocal`; default halo width 1 and overlap 2. |
 | Per-array halo width and overlap | `field(A; halowidths=(2,2), overlaps=(4,4))` | `overlaps` is the array overlap `o_A` below; it defaults to `2*halowidths`. |
 | `nx_g()`, `x_g(...)`, etc. | Explicit `(Grid, Field)` coordinate helpers | Verify rank stride and physical origin too. |
+| `IGG_CUDAAWARE_MPI=1` / `IGG_ROCMAWARE_MPI=1` | `grid(t, nlocal; gpu_aware_mpi=true)` | Per grid instead of per process, and for all dimensions (no `_DIMX`/`_DIMY`/`_DIMZ` variants); `grid` throws unless `MPI.has_cuda()` or `MPI.has_rocm()` is `true`. See [GPU arrays and GPU-aware MPI](./gpu.md). |
+| `init_global_grid(...; select_device=true)` | `CUDA.device!(...)` before allocating | HaloGrids never selects a device. |
 
 ## Check overlap and rank stride
 

@@ -20,6 +20,7 @@ makedocs(;
             "Topologies, grids, and fields" => "guide/concepts.md",
             "Halo exchange" => "guide/halo-exchange.md",
             "Hiding communication and boundary widths" => "guide/hide-communication.md",
+            "GPU arrays and GPU-aware MPI" => "guide/gpu.md",
             "Gathering arrays" => "guide/gather.md",
             "MPI/HDF5 file I/O" => "guide/hdf5-io.md",
             "Parallel ParaView (pvtk) I/O" => "guide/pvtk-io.md",

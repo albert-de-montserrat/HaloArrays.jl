@@ -28,6 +28,18 @@ doing so would add real, un-opted-into time and network cost to every job for
 runners that have no GPU to test against anyway. `test/runtests.jl` detects
 this and prints a one-line skip for the GPU test files rather than failing.
 
+The GPU test files also run `gpu_aware_mpi=true` cases when `MPI.has_cuda()`
+is `true`. The test driver launches ranks with MPI.jl's default `MPICH_jll`,
+which is not CUDA-aware, so it skips those cases. To run them, launch a GPU test
+file with a CUDA-aware MPI whose MPIPreferences are set for the `test`
+environment, for example:
+
+```sh
+mpiexec -n 2 julia --project=test --startup-file=no test/test_cuda.jl
+```
+
+See [GPU arrays and GPU-aware MPI](./guide/gpu.md) for configuring MPI.jl.
+
 A separate job builds this site with `docs/make.jl`. Documenter's own link and
 docstring checks run as part of that build.
 
@@ -82,6 +94,7 @@ package extensions.
 HaloGrids.check_fields
 HaloGrids.is_cuarray
 HaloGrids.pack_target
+HaloGrids.mpi_sendbuf
 ```
 
 ## Deployment
